@@ -318,8 +318,7 @@ async function load() {
     for (const {key, data} of results) {
       for (const [hora, {v, fecha}] of Object.entries(data)) {
         if (!combined[hora]) combined[hora] = {hora, fecha};
-        // vel y raf vienen en m/s, convertir a km/h
-        combined[hora][key] = (key==='vel'||key==='raf') ? Math.round(v*3.6*10)/10 : v;
+        combined[hora][key] = v;
       }
     }
 
