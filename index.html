@@ -91,7 +91,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 #eb.on{display:block;}
 
 /* LOADER */
-#ldr{display:none;flex-direction:column;align-items:center;justify-content:center;padding:48px;gap:13px;color:var(--t2);}
+#ldr{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);flex-direction:column;align-items:center;justify-content:center;padding:20px 28px;gap:10px;color:var(--t2);background:var(--sf);border:1px solid var(--bd);border-radius:12px;z-index:150;box-shadow:var(--sh);}
 #ldr.on{display:flex;}
 .sp{width:34px;height:34px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -117,7 +117,6 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
   <div id="page-datos" class="page on">
     <div id="sb"><div id="dot"></div><span id="stx">Listo</span></div>
     <div id="eb"></div>
-    <div id="ldr"><div class="sp"></div><span>Conectando con MeteoNavarra...</span></div>
     <div id="upd"></div>
     <div id="dc"></div>
   </div>
@@ -143,6 +142,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
   <div class="tab" data-p="graficas"><div class="ti">📈</div><div class="tb"></div><span>Gráficas</span></div>
   <div class="tab" data-p="favs"><div class="ti">⭐</div><div class="tb"></div><span>Favoritos</span></div>
 </div>
+<div id="ldr"><div class="sp"></div><span>Conectando...</span></div>
 <div id="toast"></div>
 
 <script>
@@ -249,7 +249,7 @@ function renderFavs(){
 let toastT;
 function toast(m){$toast.textContent=m;$toast.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>$toast.classList.remove('on'),2200);}
 
-const PARAMS = { temp:1, hum:2, prec:3, pres:4, rad:5, vel:7, dir:9, raf:10 };
+const PARAMS = { temp:1, hum:2, prec:3, pres:15, rad:5, vel:7, dir:9, raf:10 };
 
 function buildURL(estId, param) {
   const now = new Date();
@@ -318,7 +318,8 @@ async function load() {
     for (const {key, data} of results) {
       for (const [hora, {v, fecha}] of Object.entries(data)) {
         if (!combined[hora]) combined[hora] = {hora, fecha};
-        combined[hora][key] = v;
+        // vel y raf vienen en m/s, convertir a km/h
+        combined[hora][key] = (key==='vel'||key==='raf') ? Math.round(v*3.6*10)/10 : v;
       }
     }
 
