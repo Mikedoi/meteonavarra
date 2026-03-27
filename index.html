@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a3a5c" id="mcol">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MeteoNavarra">
+<link rel="manifest" href="manifest.json">
+<title>MeteoNavarra</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d1b2a;--sf:#1a2e45;--sf2:#1f3a56;--bd:#2a4a6b;
+  --ac:#4fc3f7;--gn:#4caf50;--or:#ff9800;--rd:#f44336;--yw:#ffd600;
+  --tx:#e8f4fd;--t2:#90b4ce;--t3:#5a7d9a;
+  --sh:0 4px 20px rgba(0,0,0,.5);--rr:14px;--hh:56px;--th:56px;
+  --hdr1:#0d2137;--hdr2:#1a3a5c;
+}
+[data-theme="day"]{
+  --bg:#eef3f8;--sf:#fff;--sf2:#e4edf5;--bd:#c0d4e8;
+  --ac:#1565c0;--gn:#388e3c;--tx:#1a2e45;--t2:#2a5a8a;--t3:#607d8b;
+  --sh:0 4px 20px rgba(0,0,0,.1);--hdr1:#1565c0;--hdr2:#1976d2;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;transition:background .25s,color .25s;}
+
+/* HEADER */
+#hdr{position:fixed;top:0;left:0;right:0;height:var(--hh);background:linear-gradient(135deg,var(--hdr1),var(--hdr2));display:flex;align-items:center;padding:0 10px;gap:7px;z-index:100;box-shadow:0 2px 14px rgba(0,0,0,.5);border-bottom:1px solid var(--bd);}
+.logo{font-size:17px;font-weight:800;color:#fff;white-space:nowrap;}
+.logo em{color:var(--ac);font-style:normal;}
+#sw{flex:1;position:relative;min-width:0;}
+#ss{width:100%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 26px 7px 10px;font-size:13px;appearance:none;cursor:pointer;outline:none;}
+[data-theme="day"] #ss{background:rgba(255,255,255,.9);color:#1a2e45;}
+#ss option,#ss optgroup{background:#1a2e45;color:#e8f4fd;}
+[data-theme="day"] #ss option,[data-theme="day"] #ss optgroup{background:#fff;color:#1a2e45;}
+#sw::after{content:'▼';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.6);font-size:9px;pointer-events:none;}
+.hb{background:none;border:none;font-size:20px;cursor:pointer;color:rgba(255,255,255,.8);padding:4px;flex-shrink:0;}
+#rbtn{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:7px;padding:5px 9px;color:#fff;font-size:16px;cursor:pointer;}
+#fbtn.on{color:var(--yw);}
+
+/* TABS */
+#tabs{position:fixed;bottom:0;left:0;right:0;height:var(--th);background:var(--sf);border-top:1px solid var(--bd);display:flex;z-index:100;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--t3);font-size:11px;padding:4px 0;transition:color .2s;}
+.ti{font-size:19px;}.tb{width:22px;height:2px;border-radius:2px;background:transparent;}
+.tab.on{color:var(--ac);}.tab.on .tb{background:var(--ac);}
+
+/* CONTENT */
+#cnt{position:fixed;top:var(--hh);bottom:var(--th);left:0;right:0;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+#cnt::-webkit-scrollbar{width:3px;}
+#cnt::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px;}
+.page{display:none;padding:13px;}.page.on{display:block;}
+
+/* CARD */
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rr);padding:13px;margin-bottom:11px;box-shadow:var(--sh);}
+.ct{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--t3);margin-bottom:11px;}
+
+/* STATUS */
+#sb{display:flex;align-items:center;gap:7px;padding:8px 11px;background:var(--sf2);border-radius:8px;margin-bottom:11px;font-size:13px;border:1px solid var(--bd);}
+#dot{width:8px;height:8px;border-radius:50%;background:var(--gn);flex-shrink:0;}
+#dot.ld{background:var(--or);animation:pulse 1s infinite;}
+#dot.er{background:var(--rd);}
+#stx{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* DATA GRID */
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+.di{background:var(--sf2);border-radius:10px;padding:11px;display:flex;flex-direction:column;border:1px solid var(--bd);}
+.di.full{grid-column:1/-1;}
+.lb{font-size:11px;color:var(--t3);margin-bottom:3px;}
+.vl{font-size:22px;font-weight:700;line-height:1.1;}
+.un{font-size:12px;color:var(--t2);margin-top:2px;}
+.ic{font-size:18px;margin-bottom:3px;}
+.tc{grid-column:1/-1;background:linear-gradient(135deg,#112740,#183554)!important;flex-direction:row!important;align-items:center!important;gap:14px!important;}
+[data-theme="day"] .tc{background:linear-gradient(135deg,#bbdefb,#90caf9)!important;border-color:#90caf9!important;}
+.tv{font-size:40px!important;font-weight:800!important;}
+.wr{display:flex;align-items:center;gap:11px;}
+.cmp{width:50px;height:50px;flex-shrink:0;}
+
+/* CHARTS */
+.cw{position:relative;height:195px;}
+
+/* FAV */
+.fi{background:var(--sf2);border:1px solid var(--bd);border-radius:10px;display:flex;align-items:center;padding:11px 13px;gap:10px;cursor:pointer;margin-bottom:8px;}
+.fn{flex:1;font-size:15px;}.fz{font-size:11px;color:var(--t3);}
+.frm{background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer;padding:4px;}
+
+/* ERROR */
+#eb{display:none;background:rgba(244,67,54,.1);border:1px solid var(--rd);border-radius:10px;padding:13px;margin-bottom:11px;font-size:13px;color:#ef9a9a;line-height:1.6;}
+#eb.on{display:block;}
+
+/* LOADER */
+#ldr{display:none;flex-direction:column;align-items:center;justify-content:center;padding:48px;gap:13px;color:var(--t2);}
+#ldr.on{display:flex;}
+.sp{width:34px;height:34px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* TOAST */
+#toast{position:fixed;bottom:calc(var(--th)+10px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--sf2);border:1px solid var(--bd);border-radius:24px;padding:8px 16px;font-size:13px;color:var(--tx);z-index:200;transition:transform .3s;white-space:nowrap;box-shadow:var(--sh);}
+#toast.on{transform:translateX(-50%) translateY(0);}
+.empty{text-align:center;color:var(--t3);padding:44px 20px;font-size:14px;line-height:1.7;}
+#upd{font-size:12px;color:var(--t3);text-align:center;margin-bottom:11px;}
+</style>
+</head>
+<body>
+
+<div id="hdr">
+  <div class="logo"><em>Meteo</em>Nav</div>
+  <div id="sw"><select id="ss"></select></div>
+  <button class="hb" id="fbtn">☆</button>
+  <button class="hb" id="tbtn">🌙</button>
+  <button id="rbtn">↻</button>
+</div>
+
+<div id="cnt">
+  <div id="page-datos" class="page on">
+    <div id="sb"><div id="dot"></div><span id="stx">Listo</span></div>
+    <div id="eb"></div>
+    <div id="ldr"><div class="sp"></div><span>Conectando con MeteoNavarra...</span></div>
+    <div id="upd"></div>
+    <div id="dc"></div>
+  </div>
+  <div id="page-graficas" class="page">
+    <div class="card">
+      <div class="ct">💧 Humedad relativa &amp; Dirección del viento</div>
+      <div class="cw"><canvas id="ch1"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="ct">💨 Velocidad media &amp; Ráfaga máxima (km/h)</div>
+      <div class="cw"><canvas id="ch2"></canvas></div>
+    </div>
+    <p style="text-align:center;color:var(--t3);font-size:11px;padding-bottom:4px;">Datos reales · lecturas cada 10 min</p>
+  </div>
+  <div id="page-favs" class="page">
+    <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">⭐ Mis favoritas</div>
+    <div id="fl"></div>
+  </div>
+</div>
+
+<div id="tabs">
+  <div class="tab on" data-p="datos"><div class="ti">🌡️</div><div class="tb"></div><span>Datos</span></div>
+  <div class="tab" data-p="graficas"><div class="ti">📈</div><div class="tb"></div><span>Gráficas</span></div>
+  <div class="tab" data-p="favs"><div class="ti">⭐</div><div class="tb"></div><span>Favoritos</span></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// ESTACIONES REALES DE METEONAVARRA — IDs verificados
+// Solo automáticas (datos tiempo real cada 10 min)
+// Ordenadas alfabéticamente
+// ═══════════════════════════════════════════════════════════
+const EST = [
+  {id:274,n:"Ablitas"},{id:519,n:"Abodi (Pikatua)"},
+  {id:263,n:"Adiós"},{id:33,n:"Aguilar de Codés"},
+  {id:262,n:"Aibar"},{id:34,n:"Aoiz"},
+  {id:22,n:"Aralar"},{id:23,n:"Arangoiti"},
+  {id:243,n:"Arazuri (INTIA)"},{id:264,n:"Artajona"},
+  {id:6,n:"Bardenas (Barranco INTIA)"},{id:275,n:"Bardenas (El Plano)"},
+  {id:31,n:"Bardenas (El Yugo)"},{id:26,n:"Bardenas (Loma Negra)"},
+  {id:268,n:"Bargota"},{id:12,n:"Beortegi"},
+  {id:460,n:"Bera (Larrategaña)"},{id:4,n:"Cadreita (INTIA)"},
+  {id:35,n:"Carcastillo (La Oliva)"},{id:24,n:"Carrascal"},
+  {id:276,n:"Cascante"},{id:258,n:"Corella (INTIA)"},
+  {id:42,n:"Doneztebe-Santesteban"},{id:28,n:"El Perdón"},
+  {id:461,n:"Eltzaburu"},{id:249,n:"Erremendia (Salazar)"},
+  {id:7,n:"Estella"},{id:517,n:"Etxalar (Orizkiko Lepoa)"},
+  {id:8,n:"Etxarri-Aranatz"},{id:269,n:"Falces"},
+  {id:273,n:"Fitero"},{id:259,n:"Funes (INTIA)"},
+  {id:246,n:"Getadar"},{id:499,n:"Goizueta"},
+  {id:25,n:"Gorramendi"},{id:497,n:"Iñarbegi"},
+  {id:32,n:"Irabia"},{id:502,n:"Isaba-Refugio Belagua"},
+  {id:267,n:"Lerín (INTIA)"},{id:518,n:"Lesaka (Astazelaieta)"},
+  {id:424,n:"Los Arcos"},{id:247,n:"Lumbier (INTIA)"},
+  {id:266,n:"Miranda de Arga"},{id:270,n:"Murillo el Fruto"},
+  {id:251,n:"Oco (INTIA)"},{id:257,n:"Olite (INTIA)"},
+  {id:37,n:"Oskotz"},{id:455,n:"Pamplona"},
+  {id:271,n:"San Adrián"},{id:265,n:"San Martín de Unx"},
+  {id:5,n:"Sartaguda (INTIA)"},{id:21,n:"Sartaguda"},
+  {id:423,n:"Sesma"},{id:9,n:"Tafalla"},
+  {id:242,n:"Traibuenas (INTIA)"},{id:29,n:"Trinidad de Iturgoien"},
+  {id:36,n:"Tudela (Montes de Cierzo)"},{id:272,n:"Tudela (Valdetellas)"},
+  {id:30,n:"Ujué"},{id:250,n:"Urbasa"},
+  {id:11,n:"Villanueva de Yerri"},{id:10,n:"Yesa"},
+].sort((a,b)=>a.n.localeCompare(b.n,'es'));
+
+// ═══════════════════════════════════════════════════════════
+// PARÁMETROS MeteoNavarra (igual que Tolomet):
+// p_10=1  Temperatura (°C)
+// p_10=2  Humedad relativa (%)
+// p_10=3  Precipitación (mm)
+// p_10=4  Presión (mbar)
+// p_10=5  Radiación global (W/m²)
+// p_10=6  Temperatura (alt)
+// p_10=7  Velocidad viento 10m (km/h)
+// p_10=9  Dirección viento 10m (°)
+// p_10=10 Racha máxima (km/h)
+// p_10=11 Insolación
+// ═══════════════════════════════════════════════════════════
+
+// Proxy CORS — usamos allorigins que devuelve el HTML tal cual
+// Igual que lo haría Tolomet pero desde navegador necesita intermediario
+const PROXY = url => `https://meteonavarra.mcalvo81.workers.dev/?url=${encodeURIComponent(url)}`;
+const PROXY2 = url => `https://corsproxy.io/?${encodeURIComponent(url)}`;
+const PROXY3 = url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`;
+
+// ── ESTADO ──
+const S = {
+  est: EST.find(e=>e.id===455), // Pamplona por defecto
+  favs: JSON.parse(localStorage.getItem('mnf3')||'[]'),
+  theme: localStorage.getItem('mnt2')||'dark',
+  charts:{}, hist:[], cur:null,
+};
+
+// ── DOM ──
+const $ss=id('ss'),$fbtn=id('fbtn'),$tbtn=id('tbtn'),$rbtn=id('rbtn'),
+      $dot=id('dot'),$stx=id('stx'),$upd=id('upd'),
+      $dc=id('dc'),$eb=id('eb'),$ldr=id('ldr'),$fl=id('fl'),$toast=id('toast');
+function id(s){return document.getElementById(s);}
+
+// ── TEMA ──
+function applyTheme(t){
+  S.theme=t; document.body.dataset.theme=t==='day'?'day':'';
+  $tbtn.textContent=t==='day'?'☀️':'🌙';
+  id('mcol').content=t==='day'?'#1565c0':'#1a3a5c';
+  localStorage.setItem('mnt2',t);
+  if(S.hist.length) renderCharts(S.hist);
+}
+$tbtn.addEventListener('click',()=>applyTheme(S.theme==='day'?'dark':'day'));
+
+// ── SELECT ──
+function buildSel(){
+  $ss.innerHTML='<option value="">-- Selecciona estación --</option>';
+  EST.forEach(e=>{
+    const op=document.createElement('option');
+    op.value=e.id; op.textContent=e.n;
+    if(e.id===S.est.id) op.selected=true;
+    $ss.appendChild(op);
+  });
+}
+$ss.addEventListener('change',()=>{
+  if(!$ss.value) return;
+  S.est=EST.find(e=>e.id===parseInt($ss.value));
+  updFavBtn(); load();
+});
+
+// ── FAVORITOS ──
+const saveFavs=()=>localStorage.setItem('mnf3',JSON.stringify(S.favs));
+const isFav=id=>S.favs.includes(id);
+function updFavBtn(){
+  $fbtn.textContent=isFav(S.est.id)?'★':'☆';
+  $fbtn.classList.toggle('on',isFav(S.est.id));
+}
+$fbtn.addEventListener('click',()=>{
+  const i=S.est.id;
+  if(isFav(i)){S.favs=S.favs.filter(f=>f!==i);toast('Eliminada de favoritos');}
+  else{S.favs.push(i);toast('⭐ Añadida a favoritos');}
+  saveFavs();updFavBtn();renderFavs();
+});
+function renderFavs(){
+  if(!S.favs.length){$fl.innerHTML='<div class="empty">Sin favoritos.<br>Pulsa ☆ para añadir estaciones.</div>';return;}
+  $fl.innerHTML='';
+  S.favs.forEach(fid=>{
+    const e=EST.find(x=>x.id===fid);if(!e)return;
+    const d=document.createElement('div');d.className='fi';
+    d.innerHTML=`<div><div class="fn">${e.n}</div><div class="fz">🟢 Automática</div></div><button class="frm" data-id="${fid}">✕</button>`;
+    d.addEventListener('click',ev=>{if(ev.target.classList.contains('frm'))return;selSt(fid);switchTab('datos');});
+    d.querySelector('.frm').addEventListener('click',()=>{S.favs=S.favs.filter(f=>f!==fid);saveFavs();updFavBtn();renderFavs();toast('Eliminado');});
+    $fl.appendChild(d);
+  });
+}
+
+// ── TOAST ──
+let toastT;
+function toast(m){$toast.textContent=m;$toast.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>$toast.classList.remove('on'),2200);}
+
+// ═══════════════════════════════════════════════════════════
+// FETCH Y PARSEO — igual que Tolomet pero desde browser
+// MeteoNavarra devuelve HTML con tabla <table>
+// Cada parámetro en columna separada cuando se piden varios p_10
+// ═══════════════════════════════════════════════════════════
+
+function buildURL(estId) {
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  // Fechas con %2F en vez de / para que ColdFusion las acepte por el proxy
+  const fmt = d => `${pad(d.getDate())}%2F${pad(d.getMonth()+1)}%2F${d.getFullYear()}`;
+  const tom = new Date(now); tom.setDate(tom.getDate()+1);
+  return `https://meteo.navarra.es/estaciones/estacion_datos_m.cfm?idestacion=${estId}&fecha_desde=${fmt(now)}&fecha_hasta=${fmt(tom)}&p_10=1&p_10=2&p_10=3&p_10=4&p_10=5&p_10=7&p_10=9&p_10=10`;
+}
+
+async function fetchHTML(url) {
+  // Primero intentamos con nuestro Worker de Cloudflare
+  const proxies = [PROXY, PROXY2, PROXY3];
+  for (const px of proxies) {
+    try {
+      const proxyUrl = px(url);
+      console.log('Probando proxy:', proxyUrl);
+      const r = await fetch(proxyUrl, {signal: AbortSignal.timeout(15000)});
+      if (!r.ok) { console.log('Proxy error status:', r.status); continue; }
+      const txt = await r.text();
+      console.log('Respuesta longitud:', txt.length, 'primeros chars:', txt.substring(0,100));
+      if (txt.length > 200) return txt;
+    } catch(e) { console.log('Proxy excepción:', e.message); }
+  }
+  return null;
+}
+
+// Parsea la tabla HTML de MeteoNavarra
+// Formato: <table> con cabecera de parámetros y filas fecha|valor1|valor2|...
+function parseHTML(html) {
+  // Crear DOM temporal para parsear
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const tables = doc.querySelectorAll('table');
+  
+  let dataTable = null;
+  for (const t of tables) {
+    const rows = t.querySelectorAll('tr');
+    if (rows.length > 5) { dataTable = t; break; }
+  }
+  if (!dataTable) return null;
+
+  const rows = dataTable.querySelectorAll('tr');
+  if (rows.length < 3) return null;
+
+  // Fila 0: nombres parámetros, Fila 1: unidades, Fila 2+: datos
+  const headers = [];
+  const headerRow = rows[0];
+  headerRow.querySelectorAll('th,td').forEach(cell => {
+    headers.push(cell.textContent.trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/\s+/g,' '));
+  });
+
+  // Mapeo de columnas por nombre de parámetro
+  const findCol = (...keys) => {
+    for (const k of keys) {
+      const i = headers.findIndex(h => h.includes(k));
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+
+  const iDate = 0; // siempre primera columna
+  const iTemp = findCol('temperatura','temp');
+  const iHum  = findCol('humedad','hume');
+  const iPrec = findCol('precipit','prec');
+  const iPres = findCol('presion','pres','mbar');
+  const iRad  = findCol('radiacion','radia','solar');
+  const iVel  = findCol('velocidad','vel');
+  const iDir  = findCol('direccion','dir');
+  const iRaf  = findCol('racha');
+
+  const result = [];
+  for (let i = 2; i < rows.length; i++) {
+    const cells = rows[i].querySelectorAll('td');
+    if (cells.length < 2) continue;
+
+    const get = j => {
+      if (j < 0 || j >= cells.length) return null;
+      const v = cells[j].textContent.trim().replace(',','.');
+      if (!v || v === '- -' || v === '--' || v === '-') return null;
+      const n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    };
+    const dateStr = cells[0] ? cells[0].textContent.trim() : '';
+    if (!dateStr || dateStr.includes('Página')) continue;
+
+    // Extraer hora de la fecha (formato "26/03/2026 14:30")
+    const parts = dateStr.split(' ');
+    const hora = parts.length > 1 ? parts[1] : '';
+    const fecha = parts[0] || '';
+
+    const row = {
+      fecha, hora,
+      temp: get(iTemp), hum: get(iHum),
+      prec: get(iPrec), pres: get(iPres),
+      rad:  get(iRad),  vel:  get(iVel),
+      dir:  get(iDir),  raf:  get(iRaf),
+    };
+
+    // Solo incluir filas con al menos temperatura o viento
+    if (row.temp !== null || row.vel !== null) result.push(row);
+  }
+
+  return result.length ? result : null;
+}
+
+// ── CARGA PRINCIPAL ──
+async function load() {
+  setStatus('ld', 'Conectando con MeteoNavarra...');
+  $ldr.classList.add('on');
+  $eb.classList.remove('on');
+  $dc.innerHTML=''; $upd.textContent='';
+
+  const url = buildURL(S.est.id);
+
+  try {
+    const html = await fetchHTML(url);
+
+    if (!html) {
+      throw new Error('No se pudo conectar con MeteoNavarra.\n\nPosibles causas:\n• Sin conexión a internet\n• Los servidores proxy CORS están caídos\n• MeteoNavarra no tiene datos para esta estación\n\nPara datos siempre disponibles, configura el Cloudflare Worker (ver INSTALAR.md).');
+    }
+
+    const rows = parseHTML(html);
+
+    if (!rows || rows.length === 0) {
+      throw new Error('MeteoNavarra no devolvió datos para esta estación.\n\nEs posible que la estación no tenga lecturas para hoy o que el formato haya cambiado.\n\nPrueba con otra estación automática (🟢).');
+    }
+
+    // Datos más recientes = última fila con valores reales
+    const cur = [...rows].reverse().find(r => r.temp !== null || r.vel !== null) || rows[rows.length-1];
+    S.cur = cur;
+    S.hist = rows;
+
+    renderDatos(cur);
+    // Para gráficas tomamos las últimas 144 lecturas (24h)
+    renderCharts(rows.slice(-144));
+
+    const lastTime = cur.hora ? `${cur.fecha} ${cur.hora}` : cur.fecha;
+    $upd.textContent = `Última lectura: ${lastTime} · Datos reales MeteoNavarra`;
+    setStatus('ok', S.est.n);
+
+  } catch(err) {
+    $eb.innerHTML = `<strong>⚠️ Error al cargar datos</strong><br><br>${err.message.replace(/\n/g,'<br>')}`;
+    $eb.classList.add('on');
+    setStatus('er', 'Error — sin datos');
+  } finally {
+    $ldr.classList.remove('on');
+  }
+}
+
+// ── RENDER DATOS ──
+function deg2dir(d) {
+  if (d == null) return '--';
+  const ds=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+  return ds[Math.round(((d%360)+360)/22.5)%16];
+}
+function tempColor(t) {
+  if(t==null) return 'var(--tx)';
+  if(t<=0) return '#81d4fa'; if(t<=10) return '#4fc3f7';
+  if(t<=20) return '#81c784'; if(t<=28) return '#ffb74d'; return '#ef5350';
+}
+function wxIcon(t,r,rd) {
+  if(r>2) return '🌧️'; if(r>.2) return '🌦️';
+  if(rd>600) return '☀️'; if(rd>200) return '⛅';
+  if(t!=null&&t<0) return '❄️'; return '🌥️';
+}
+const fm = (v,d=1) => v!=null ? parseFloat(v).toFixed(d) : '--';
+
+function renderDatos(d) {
+  const dir = deg2dir(d.dir);
+  const deg = d.dir || 0;
+  $dc.innerHTML = `
+  <div class="dg">
+    <div class="di tc">
+      <div style="font-size:44px">${wxIcon(d.temp, d.prec||0, d.rad||0)}</div>
+      <div>
+        <div class="lb">Temperatura</div>
+        <div class="vl tv" style="color:${tempColor(d.temp)}">${fm(d.temp,1)}°C</div>
+      </div>
+    </div>
+    <div class="di"><div class="ic">💧</div><div class="lb">Humedad relativa</div><div class="vl">${fm(d.hum,0)}</div><div class="un">%</div></div>
+    <div class="di"><div class="ic">🌡️</div><div class="lb">Presión</div><div class="vl">${fm(d.pres,1)}</div><div class="un">hPa</div></div>
+    <div class="di full">
+      <div class="lb">💨 Viento</div>
+      <div class="wr">
+        <svg class="cmp" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="30" cy="30" r="28" fill="none" stroke="var(--bd)" stroke-width="1.5"/>
+          <text x="30" y="9"  text-anchor="middle" fill="var(--t3)" font-size="7.5" font-family="system-ui">N</text>
+          <text x="30" y="55" text-anchor="middle" fill="var(--t3)" font-size="7.5" font-family="system-ui">S</text>
+          <text x="7"  y="33" text-anchor="middle" fill="var(--t3)" font-size="7.5" font-family="system-ui">O</text>
+          <text x="53" y="33" text-anchor="middle" fill="var(--t3)" font-size="7.5" font-family="system-ui">E</text>
+          <g transform="rotate(${deg},30,30)">
+            <polygon points="30,8 26,30 30,25 34,30" fill="var(--ac)"/>
+            <polygon points="30,52 26,30 30,35 34,30" fill="var(--bd)"/>
+          </g>
+          <circle cx="30" cy="30" r="3" fill="var(--ac)"/>
+        </svg>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--ac)">${dir} · ${fm(d.vel,1)} km/h</div>
+          <div style="font-size:12px;color:var(--t3)">Ráfaga: ${fm(d.raf,1)} km/h</div>
+        </div>
+      </div>
+    </div>
+    <div class="di"><div class="ic">🌧️</div><div class="lb">Precipitación</div><div class="vl">${fm(d.prec,1)}</div><div class="un">mm</div></div>
+    <div class="di"><div class="ic">☀️</div><div class="lb">Rad. global</div><div class="vl">${fm(d.rad,0)}</div><div class="un">W/m²</div></div>
+  </div>`;
+}
+
+// ── CHARTS ──
+function renderCharts(rows) {
+  const day = S.theme === 'day';
+  const gc = day ? 'rgba(192,212,232,.8)' : 'rgba(42,74,107,.7)';
+  const tc = day ? '#2a5a8a' : '#90b4ce';
+  // Reducir puntos para legibilidad — máx 48 puntos
+  const step = Math.max(1, Math.floor(rows.length/48));
+  const sampled = rows.filter((_,i)=>i%step===0);
+  const labels = sampled.map(r=>r.hora||'');
+  const base = {responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:tc,font:{size:11}}}},
+    scales:{x:{ticks:{color:tc,font:{size:10},maxRotation:45,maxTicksLimit:8},grid:{color:gc}}}};
+
+  if(S.charts.c1) S.charts.c1.destroy();
+  S.charts.c1 = new Chart(id('ch1'),{type:'line',
+    data:{labels,datasets:[
+      {label:'Humedad (%)',data:sampled.map(r=>r.hum),borderColor:'#29b6f6',backgroundColor:'rgba(41,182,246,.12)',fill:true,tension:.4,pointRadius:1.5,yAxisID:'y'},
+      {label:'Dir. Viento (°)',data:sampled.map(r=>r.dir),borderColor:'#ce93d8',fill:false,tension:0,pointRadius:2.5,pointStyle:'triangle',yAxisID:'y1'}
+    ]},
+    options:{...base,scales:{...base.scales,
+      y:{position:'left',ticks:{color:'#29b6f6',font:{size:10}},grid:{color:gc},min:0,max:100},
+      y1:{position:'right',ticks:{color:'#ce93d8',font:{size:10}},grid:{drawOnChartArea:false},min:0,max:360}
+    }}
+  });
+
+  if(S.charts.c2) S.charts.c2.destroy();
+  S.charts.c2 = new Chart(id('ch2'),{type:'line',
+    data:{labels,datasets:[
+      {label:'Vel. media (km/h)',data:sampled.map(r=>r.vel),borderColor:'#66bb6a',backgroundColor:'rgba(102,187,106,.12)',fill:true,tension:.4,pointRadius:1.5},
+      {label:'Ráfaga máx. (km/h)',data:sampled.map(r=>r.raf),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[5,3]}
+    ]},
+    options:{...base,scales:{...base.scales,
+      y:{ticks:{color:tc,font:{size:10}},grid:{color:gc},min:0}
+    }}
+  });
+}
+
+// ── UTILS ──
+function setStatus(t,msg){
+  $dot.className=t==='ld'?'ld':t==='er'?'er':'';
+  $stx.textContent=msg;
+}
+function switchTab(name){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  id(`page-${name}`).classList.add('on');
+  document.querySelector(`.tab[data-p="${name}"]`).classList.add('on');
+}
+function selSt(eid){
+  S.est=EST.find(e=>e.id===eid)||EST[0];
+  for(const op of $ss.options) if(parseInt(op.value)===S.est.id){op.selected=true;break;}
+  updFavBtn(); load();
+}
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.p)));
+$rbtn.addEventListener('click', load);
+
+// ── INIT ──
+applyTheme(S.theme);
+buildSel();
+updFavBtn();
+renderFavs();
+load();
+// Auto-refresh cada 10 minutos
+setInterval(load, 10*60*1000);
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
