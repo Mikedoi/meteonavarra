@@ -14,7 +14,7 @@
 :root{
   --bg:#0d1b2a;--sf:#1a2e45;--sf2:#1f3a56;--bd:#2a4a6b;
   --ac:#4fc3f7;--gn:#4caf50;--or:#ff9800;--rd:#f44336;--yw:#ffd600;
-  --tx:#e8f4fd;--t2:#90b4ce;--t3:#5a7d9a;
+  --tx:#e8f4fd;--t2:#b8d4e8;--t3:#8ab4cc;
   --sh:0 4px 20px rgba(0,0,0,.5);--rr:14px;--hh:56px;--th:56px;
   --hdr1:#0d2137;--hdr2:#1a3a5c;
 }
@@ -202,7 +202,6 @@ function applyTheme(t){
   localStorage.setItem('mnt2',t);
   if(S.hist.length) renderCharts(S.hist);
 }
-$tbtn.addEventListener('click',()=>applyTheme(S.theme==='day'?'dark':'day'));
 
 function buildSel(){
   $ss.innerHTML='<option value="">-- Selecciona estación --</option>';
@@ -213,11 +212,11 @@ function buildSel(){
     $ss.appendChild(op);
   });
 }
-$ss.addEventListener('change',()=>{
+function onSelChange(){
   if(!$ss.value) return;
   S.est=EST.find(e=>e.id===parseInt($ss.value));
   updFavBtn(); load();
-});
+}
 
 const saveFavs=()=>localStorage.setItem('mnf3',JSON.stringify(S.favs));
 const isFav=id=>S.favs.includes(id);
@@ -225,12 +224,12 @@ function updFavBtn(){
   $fbtn.textContent=isFav(S.est.id)?'★':'☆';
   $fbtn.classList.toggle('on',isFav(S.est.id));
 }
-$fbtn.addEventListener('click',()=>{
+function onFavClick(){
   const i=S.est.id;
   if(isFav(i)){S.favs=S.favs.filter(f=>f!==i);toast('Eliminada de favoritos');}
   else{S.favs.push(i);toast('⭐ Añadida a favoritos');}
   saveFavs();updFavBtn();renderFavs();
-});
+}
 function renderFavs(){
   if(!S.favs.length){$fl.innerHTML='<div class="empty">Sin favoritos.<br>Pulsa ☆ para añadir estaciones.</div>';return;}
   $fl.innerHTML='';
@@ -464,9 +463,12 @@ function selSt(eid){
   for(const op of $ss.options) if(parseInt(op.value)===S.est.id){op.selected=true;break;}
   updFavBtn(); load();
 }
-document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.p)));
+initDOM();
+$ss.addEventListener('change', onSelChange);
 $rbtn.addEventListener('click', load);
-
+$tbtn.addEventListener('click',()=>applyTheme(S.theme==='day'?'dark':'day'));
+$fbtn.addEventListener('click', onFavClick);
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>switchTab(t.dataset.p)));
 applyTheme(S.theme);
 buildSel();
 updFavBtn();
