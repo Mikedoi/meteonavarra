@@ -182,7 +182,7 @@ const PROXY  = url => `https://meteonavarra.mcalvo81.workers.dev/?url=${encodeUR
 const PROXY2 = url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
 const PROXY3 = url => `https://corsproxy.io/?${encodeURIComponent(url)}`;
 
-const PARAMS = { temp:1, hum:2, rad:3, ins:4, vel:7, dir:8, raf:11, prec:12 };
+const PARAMS = { temp:1, hum:2, rad:3, ins:4, vel:6, dir:7, raf:9, prec:12 };
 
 const S = {
   est: EST.find(e=>e.id===455),
@@ -297,7 +297,7 @@ function parseOneParam(html){
     const raw = cells[1].textContent.trim().replace(',','.');
     if(!raw || raw==='- -' || raw==='--' || raw==='-') continue;
     const v = parseFloat(raw);
-    if(!isNaN(v)) result[hora] = {v, fecha, hora};
+    if(!isNaN(v)) result[fecha+'_'+hora] = {v, fecha, hora};
   }
   return result;
 }
@@ -330,23 +330,25 @@ async function load(){
 
     const combined = {};
     for(const {key, data} of results){
-      for(const [hora, {v, fecha}] of Object.entries(data)){
-        if(!combined[hora]) combined[hora] = {hora, fecha};
-        combined[hora][key] = v;
+      for(const [key2, {v, fecha, hora}] of Object.entries(data)){
+        if(!combined[key2]) combined[key2] = {hora, fecha, key2};
+        combined[key2][key] = v;
       }
     }
 
-    const rows = Object.values(combined).sort((a,b)=>a.hora.localeCompare(b.hora));
+    // Ordenar por fecha y hora correctamente
+    const rows = Object.values(combined).sort((a,b)=>{
+      const da = a.fecha.split('/').reverse().join('')+a.hora.replace(':','');
+      const db = b.fecha.split('/').reverse().join('')+b.hora.replace(':','');
+      return da.localeCompare(db);
+    });
 
     if(!rows.length){
       throw new Error('MeteoNavarra no devolvió datos para esta estación.\nPrueba con otra estación automática.');
     }
 
-    // Solo lecturas de hoy para el dato actual
-    const hoy = new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'}).replace(/\//g,'/');
-    const deHoy = rows.filter(r=>r.fecha===hoy);
-    const base = deHoy.length ? deHoy : rows;
-    const cur = [...base].reverse().find(r=>r.temp!=null||r.vel!=null) || base[base.length-1];
+    // Última lectura válida — la más reciente de todas con datos
+    const cur = [...rows].reverse().find(r=>r.temp!=null||r.vel!=null) || rows[rows.length-1];
     S.cur=cur; S.hist=rows;
 
     renderDatos(cur);
@@ -444,6 +446,7 @@ function renderCharts(rows){
   const gc = day?'rgba(192,212,232,.8)':'rgba(42,74,107,.7)';
   const tc = day?'#2a5a8a':'#90b4ce';
   const data = rows.slice(-144);
+  // Mostrar solo la hora en el label para no saturar el eje
   const labels = data.map(r=>r.hora||'');
   const base = {
     responsive:true, maintainAspectRatio:false,
