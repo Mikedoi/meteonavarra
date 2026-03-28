@@ -220,10 +220,11 @@ function makeURL(estId, param, desde, hasta){
 async function fetchOne(url){
   for(const px of [PROXY,PROXY2,PROXY3]){
     try{
-      const purl=px(url);
-      const r=await fetch(purl,{signal:AbortSignal.timeout(15000)});
+      const r=await fetch(px(url),{signal:AbortSignal.timeout(15000)});
       if(!r.ok) continue;
-      const t=await r.text();
+      // MeteoNavarra usa iso-8859-1 — leer como ArrayBuffer y decodificar
+      const buf=await r.arrayBuffer();
+      const t=new TextDecoder('iso-8859-1').decode(buf);
       if(t.length>200) return t;
     }catch(e){}
   }
@@ -244,13 +245,14 @@ function parseParam(html){
     const cells=tr.querySelectorAll('td');
     if(cells.length<2) continue;
     const ds=cells[0].textContent.trim();
-    if(!ds||ds.includes('Página')||ds.includes('Fecha')) continue;
+    // Fecha en formato dd/mm/yyyy HH:MM
+    if(!/^\d{2}\/\d{2}\/\d{4}/.test(ds)) continue;
     const parts=ds.split(' ');
-    const fecha=parts[0]||'';
+    const fecha=parts[0];
     const hora=parts[1]||'';
-    if(!fecha||!hora) continue;
+    if(!hora) continue;
     const raw=cells[1].textContent.trim().replace(',','.');
-    if(!raw||raw==='- -'||raw==='--'||raw==='-') continue;
+    if(!raw||raw==='- -'||raw==='--'||raw==='-'||raw==='') continue;
     const v=parseFloat(raw);
     if(!isNaN(v)) out.push({fecha,hora,v});
   }
