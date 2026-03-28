@@ -282,22 +282,23 @@ async function load(){
   try{
     const now=new Date();
     const ayer=new Date(now.getTime()-86400000);
+    const manana=new Date(now.getTime()+86400000);
     const hoy=fechaHoy();
 
-    // Petición de HOY para dato actual
+    // Petición de HOY para dato actual (desde hoy hasta mañana)
     const resCur=await Promise.all(
       Object.entries(PARAMS).map(([key,pnum])=>
-        fetchOne(makeURL(S.est.id,pnum,now,now))
+        fetchOne(makeURL(S.est.id,pnum,now,manana))
           .then(html=>({key,rows:html?parseParam(html):[]}))
           .catch(()=>({key,rows:[]}))
       )
     );
     const rowsHoy=combine(resCur).filter(r=>r.fecha===hoy);
 
-    // Petición AYER+HOY para historial gráficas
+    // Petición AYER+HOY para historial gráficas (desde ayer hasta mañana)
     const resHist=await Promise.all(
       Object.entries(PARAMS).map(([key,pnum])=>
-        fetchOne(makeURL(S.est.id,pnum,ayer,now))
+        fetchOne(makeURL(S.est.id,pnum,ayer,manana))
           .then(html=>({key,rows:html?parseParam(html):[]}))
           .catch(()=>({key,rows:[]}))
       )
