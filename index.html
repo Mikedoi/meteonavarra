@@ -185,6 +185,8 @@ const EST = [
 // p_10=4 insolación s | p_10=6 vel.media km/h | p_10=7 dir.viento °
 // p_10=9 racha máx km/h | p_10=12 precipitación L/m²
 const PARAMS = { temp:1, hum:2, rad:3, ins:4, vel:6, dir:7, raf:9, prec:12 };
+// Parámetros que tienen la columna útil en cells[2] en vez de cells[1]
+const PARAMS_COL2 = new Set([9]);
 
 const PROXY  = u => `https://meteonavarra.mcalvo81.workers.dev/?url=${encodeURIComponent(u)}`;
 const PROXY2 = u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
@@ -233,26 +235,22 @@ async function fetchOne(url){
 
 // ── PARSEO ──
 // Devuelve array de {fecha, hora, v} — una entrada por fila válida
-function parseParam(html){
+function parseParam(html, col=1){
   const doc=new DOMParser().parseFromString(html,'text/html');
-  // La tabla de datos es siempre la tercera (índice 2)
-  const tbls=doc.querySelectorAll('table');
-  const tbl=tbls[2];
+  const tbl=doc.querySelectorAll('table')[2];
   if(!tbl) return [];
   const out=[];
   const rows=tbl.querySelectorAll('tr');
-  // Fila 0: cabecera, Fila 1: unidades, Fila 2+: datos
   for(let i=2;i<rows.length;i++){
     const cells=rows[i].querySelectorAll('td');
-    if(cells.length<2) continue;
-    // Limpiar espacios, tabs y saltos de línea
+    if(cells.length<col+1) continue;
     const ds=cells[0].textContent.replace(/\s+/g,' ').trim();
     if(!/^\d{2}\/\d{2}\/\d{4}/.test(ds)) continue;
     const parts=ds.split(' ');
     const fecha=parts[0];
     const hora=parts[1]||'';
     if(!hora) continue;
-    const raw=cells[1].textContent.replace(/\s+/g,' ').trim().replace(',','.');
+    const raw=cells[col].textContent.replace(/\s+/g,' ').trim().replace(',','.');
     if(!raw||raw==='- -'||raw==='--'||raw==='-'||raw==='') continue;
     const v=parseFloat(raw);
     if(!isNaN(v)) out.push({fecha,hora,v});
@@ -295,7 +293,7 @@ async function load(){
     const resCur=await Promise.all(
       Object.entries(PARAMS).map(([key,pnum])=>
         fetchOne(makeURL(S.est.id,pnum,now,manana))
-          .then(html=>({key,rows:html?parseParam(html):[]}))
+          .then(html=>({key,rows:html?parseParam(html,PARAMS_COL2.has(pnum)?2:1):[]}))
           .catch(()=>({key,rows:[]}))
       )
     );
@@ -305,7 +303,7 @@ async function load(){
     const resHist=await Promise.all(
       Object.entries(PARAMS).map(([key,pnum])=>
         fetchOne(makeURL(S.est.id,pnum,ayer,manana))
-          .then(html=>({key,rows:html?parseParam(html):[]}))
+          .then(html=>({key,rows:html?parseParam(html,PARAMS_COL2.has(pnum)?2:1):[]}))
           .catch(()=>({key,rows:[]}))
       )
     );
@@ -326,7 +324,7 @@ async function load(){
     const c=cur||rowsAll[rowsAll.length-1];
     const [hh,mm]=(c.hora||'0:00').split(':');
     const hora24=String(parseInt(hh)).padStart(2,'0')+':'+String(mm||'00').padStart(2,'0');
-    gid('upd').textContent=`Última lectura: ${c.fecha} ${hora24} (horario solar)`;
+    gid('upd').textContent=`Última lectura: ${c.fecha} ${hora24} (UTC)`;
     setStatus('ok',S.est.n);
 
   }catch(err){
@@ -389,7 +387,7 @@ function renderDatos(d){
           <circle cx="30" cy="30" r="3" fill="var(--ac)"/>
         </svg>
         <div class="wind-data">
-          <div class="wind-dir-big">${dir}</div>
+          <div class="wind-dir-big">${dir} <span style="font-size:16px;color:var(--t2)">${d.dir!=null?Math.round(d.dir)+'°':''}</span></div>
           <div class="wind-row">
             <div class="wind-item">
               <div class="cell-lbl">Vel. media</div>
@@ -432,7 +430,7 @@ function renderCharts(rows){
   const W=Math.max(data.length*12, 400);
 
   const opts=(extraScales)=>({
-    responsive:true,
+    responsive:false,
     maintainAspectRatio:false,
     animation:false,
     plugins:{legend:{labels:{color:tc,font:{size:11},boxWidth:12}}},
@@ -453,10 +451,12 @@ function renderCharts(rows){
 
   ['ch1','ch2'].forEach(id=>{
     const canvas=gid(id);
+    const inner=canvas.parentElement;
     canvas.style.width=W+'px';
     canvas.style.height='180px';
     canvas.width=W;
     canvas.height=180;
+    inner.style.width=W+'px';
   });
 
   if(S.charts.c1) S.charts.c1.destroy();
