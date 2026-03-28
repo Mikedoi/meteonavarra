@@ -235,23 +235,24 @@ async function fetchOne(url){
 // Devuelve array de {fecha, hora, v} — una entrada por fila válida
 function parseParam(html){
   const doc=new DOMParser().parseFromString(html,'text/html');
-  let tbl=null;
-  for(const t of doc.querySelectorAll('table')){
-    if(t.querySelectorAll('tr').length>5){tbl=t;break;}
-  }
+  // La tabla de datos es siempre la tercera (índice 2)
+  const tbls=doc.querySelectorAll('table');
+  const tbl=tbls[2];
   if(!tbl) return [];
   const out=[];
-  for(const tr of tbl.querySelectorAll('tr')){
-    const cells=tr.querySelectorAll('td');
+  const rows=tbl.querySelectorAll('tr');
+  // Fila 0: cabecera, Fila 1: unidades, Fila 2+: datos
+  for(let i=2;i<rows.length;i++){
+    const cells=rows[i].querySelectorAll('td');
     if(cells.length<2) continue;
-    const ds=cells[0].textContent.trim();
-    // Fecha en formato dd/mm/yyyy HH:MM
+    // Limpiar espacios, tabs y saltos de línea
+    const ds=cells[0].textContent.replace(/\s+/g,' ').trim();
     if(!/^\d{2}\/\d{2}\/\d{4}/.test(ds)) continue;
     const parts=ds.split(' ');
     const fecha=parts[0];
     const hora=parts[1]||'';
     if(!hora) continue;
-    const raw=cells[1].textContent.trim().replace(',','.');
+    const raw=cells[1].textContent.replace(/\s+/g,' ').trim().replace(',','.');
     if(!raw||raw==='- -'||raw==='--'||raw==='-'||raw==='') continue;
     const v=parseFloat(raw);
     if(!isNaN(v)) out.push({fecha,hora,v});
