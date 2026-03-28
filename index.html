@@ -100,7 +100,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 #toast.on{transform:translateX(-50%) translateY(0);}
 .empty{text-align:center;color:var(--t3);padding:44px 20px;font-size:14px;line-height:1.7;}
 #upd{font-size:12px;color:var(--t3);text-align:center;margin-bottom:11px;}
-.sp{width:30px;height:30px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;}
+
 @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
@@ -271,8 +271,9 @@ function combine(paramResults){
     }
   }
   return Object.values(map).sort((a,b)=>{
-    const fa=a.fecha.split('/').reverse().join('')+a.hora.replace(':','');
-    const fb=b.fecha.split('/').reverse().join('')+b.hora.replace(':','');
+    const padH=h=>{const[hh,mm]=h.split(':');return hh.padStart(2,'0')+mm.padStart(2,'0');};
+    const fa=a.fecha.split('/').reverse().join('')+padH(a.hora);
+    const fb=b.fecha.split('/').reverse().join('')+padH(b.hora);
     return fa.localeCompare(fb);
   });
 }
@@ -281,7 +282,7 @@ function combine(paramResults){
 async function load(){
   setStatus('ld','Cargando...');
   gid('eb').classList.remove('on');
-  gid('dc').innerHTML=`<div style="text-align:center;padding:32px"><div class="sp"></div></div>`;
+  gid('dc').innerHTML='';
   gid('upd').textContent='';
 
   try{
@@ -323,7 +324,9 @@ async function load(){
     renderCharts(rowsAll);
 
     const c=cur||rowsAll[rowsAll.length-1];
-    gid('upd').textContent=`Última lectura: ${c.fecha} ${c.hora}`;
+    const [hh,mm]=(c.hora||'0:00').split(':');
+    const hora24=String(parseInt(hh)).padStart(2,'0')+':'+String(mm||'00').padStart(2,'0');
+    gid('upd').textContent=`Última lectura: ${c.fecha} ${hora24} (horario solar)`;
     setStatus('ok',S.est.n);
 
   }catch(err){
@@ -538,13 +541,25 @@ function toast(m){const t=gid('toast');t.textContent=m;t.classList.add('on');cle
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',()=>{
+  // Routing por URL: /meteonavarra/pamplona → carga Pamplona
+  const slug=location.pathname.split('/').filter(Boolean).pop()||'';
+  if(slug && slug!=='meteonavarra'){
+    const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
+    const match=EST.find(e=>norm(e.n)===slug||norm(e.n).startsWith(slug));
+    if(match) S.est=match;
+  }
+
   applyTheme(S.theme);
   buildSel();
   updFavBtn();
   renderFavs();
+
   gid('ss').addEventListener('change',function(){
     if(!this.value)return;
     S.est=EST.find(e=>e.id===parseInt(this.value));
+    // Actualizar URL sin recargar
+    const slug=S.est.n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
+    history.pushState({},'','/meteonavarra/'+slug);
     updFavBtn();load();
   });
   gid('rbtn').addEventListener('click',load);
