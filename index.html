@@ -55,7 +55,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 /* STATUS */
 #sb{display:flex;align-items:center;gap:7px;padding:8px 11px;background:var(--sf2);border-radius:8px;margin-bottom:11px;font-size:13px;border:1px solid var(--bd);}
 #dot{width:8px;height:8px;border-radius:50%;background:var(--gn);flex-shrink:0;}
-#dot.ld{background:var(--or);animation:pulse 1s infinite;}
+#dot.ld{background:var(--or);}
 #dot.er{background:var(--rd);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
@@ -84,6 +84,9 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 
 /* GRÁFICAS — scroll horizontal como Tolomet */
 .chart-outer{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px;}
+.leg{display:flex;gap:14px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .chart-inner{height:180px;min-width:100%;}
 
 /* ERROR */
@@ -101,7 +104,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 .empty{text-align:center;color:var(--t3);padding:44px 20px;font-size:14px;line-height:1.7;}
 #upd{font-size:12px;color:var(--t3);text-align:center;margin-bottom:11px;}
 
-@keyframes spin{to{transform:rotate(360deg);}}
+
 </style>
 </head>
 <body>
@@ -123,11 +126,11 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
   </div>
   <div id="page-graficas" class="page">
     <div class="grp">
-      <div class="grp-title">💧 Humedad relativa &amp; Dirección del viento</div>
+      <div class="leg" id="leg1"></div>
       <div class="chart-outer"><div class="chart-inner"><canvas id="ch1"></canvas></div></div>
     </div>
     <div class="grp">
-      <div class="grp-title">💨 Velocidad media &amp; Ráfaga máxima (km/h)</div>
+      <div class="leg" id="leg2"></div>
       <div class="chart-outer"><div class="chart-inner"><canvas id="ch2"></canvas></div></div>
     </div>
   </div>
@@ -151,30 +154,30 @@ const EST = [
   {id:263,n:"Adiós"},{id:33,n:"Aguilar de Codés"},
   {id:262,n:"Aibar"},{id:34,n:"Aoiz"},
   {id:22,n:"Aralar"},{id:23,n:"Arangoiti"},
-  {id:243,n:"Arazuri (INTIA)"},{id:264,n:"Artajona"},
-  {id:6,n:"Bardenas (Barranco INTIA)"},{id:275,n:"Bardenas (El Plano)"},
+  {id:264,n:"Artajona"},
+  {id:275,n:"Bardenas (El Plano)"},
   {id:31,n:"Bardenas (El Yugo)"},{id:26,n:"Bardenas (Loma Negra)"},
   {id:268,n:"Bargota"},{id:12,n:"Beortegi"},
-  {id:460,n:"Bera (Larrategaña)"},{id:4,n:"Cadreita (INTIA)"},
+  {id:460,n:"Bera (Larrategaña)"},
   {id:35,n:"Carcastillo (La Oliva)"},{id:24,n:"Carrascal"},
-  {id:276,n:"Cascante"},{id:258,n:"Corella (INTIA)"},
+  {id:276,n:"Cascante"},
   {id:42,n:"Doneztebe-Santesteban"},{id:28,n:"El Perdón"},
   {id:461,n:"Eltzaburu"},{id:249,n:"Erremendia (Salazar)"},
   {id:7,n:"Estella"},{id:517,n:"Etxalar (Orizkiko Lepoa)"},
   {id:8,n:"Etxarri-Aranatz"},{id:269,n:"Falces"},
-  {id:273,n:"Fitero"},{id:259,n:"Funes (INTIA)"},
+  {id:273,n:"Fitero"},
   {id:246,n:"Getadar"},{id:499,n:"Goizueta"},
   {id:25,n:"Gorramendi"},{id:497,n:"Iñarbegi"},
   {id:32,n:"Irabia"},{id:502,n:"Isaba-Refugio Belagua"},
-  {id:267,n:"Lerín (INTIA)"},{id:518,n:"Lesaka (Astazelaieta)"},
-  {id:424,n:"Los Arcos"},{id:247,n:"Lumbier (INTIA)"},
+  {id:518,n:"Lesaka (Astazelaieta)"},
+  {id:424,n:"Los Arcos"},
   {id:266,n:"Miranda de Arga"},{id:270,n:"Murillo el Fruto"},
-  {id:251,n:"Oco (INTIA)"},{id:257,n:"Olite (INTIA)"},
+  
   {id:37,n:"Oskotz"},{id:455,n:"Pamplona"},
   {id:271,n:"San Adrián"},{id:265,n:"San Martín de Unx"},
-  {id:5,n:"Sartaguda (INTIA)"},{id:21,n:"Sartaguda"},
+  {id:21,n:"Sartaguda"},
   {id:423,n:"Sesma"},{id:9,n:"Tafalla"},
-  {id:242,n:"Traibuenas (INTIA)"},{id:29,n:"Trinidad de Iturgoien"},
+  {id:29,n:"Trinidad de Iturgoien"},
   {id:36,n:"Tudela (Montes de Cierzo)"},{id:272,n:"Tudela (Valdetellas)"},
   {id:30,n:"Ujué"},{id:250,n:"Urbasa"},
   {id:11,n:"Villanueva de Yerri"},{id:10,n:"Yesa"},
@@ -433,7 +436,7 @@ function renderCharts(rows){
     responsive:false,
     maintainAspectRatio:false,
     animation:false,
-    plugins:{legend:{labels:{color:tc,font:{size:11},boxWidth:12}}},
+    plugins:{legend:{display:false}},
     scales:{
       x:{
         ticks:{
@@ -458,6 +461,14 @@ function renderCharts(rows){
     canvas.height=180;
     inner.style.width=W+'px';
   });
+
+  // Leyendas HTML fijas (no se mueven con el scroll del canvas)
+  gid('leg1').innerHTML=`
+    <div class="leg-item"><div class="leg-dot" style="background:#29b6f6"></div>Humedad (%)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>Dir. Viento (°)</div>`;
+  gid('leg2').innerHTML=`
+    <div class="leg-item"><div class="leg-dot" style="background:#66bb6a"></div>Vel. media (km/h)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#ef5350"></div>Ráfaga (km/h)</div>`;
 
   if(S.charts.c1) S.charts.c1.destroy();
   S.charts.c1=new Chart(gid('ch1'),{
