@@ -202,7 +202,8 @@ function gid(s){ return document.getElementById(s); }
 // ── FECHA ──
 function fechaStr(d){
   const pad = n=>String(n).padStart(2,'0');
-  return `${pad(d.getDate())}%2F${pad(d.getMonth()+1)}%2F${d.getFullYear()}`;
+  // Sin codificar — encodeURIComponent del proxy lo hará
+  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
 }
 function fechaHoy(){
   const now=new Date();
@@ -219,7 +220,8 @@ function makeURL(estId, param, desde, hasta){
 async function fetchOne(url){
   for(const px of [PROXY,PROXY2,PROXY3]){
     try{
-      const r=await fetch(px(url),{signal:AbortSignal.timeout(15000)});
+      const purl=px(url);
+      const r=await fetch(purl,{signal:AbortSignal.timeout(15000)});
       if(!r.ok) continue;
       const t=await r.text();
       if(t.length>200) return t;
