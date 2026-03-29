@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script>
+  // Redirigir a index.html pasando la ruta como parámetro
+  const path = window.location.pathname;
+  const repo = '/meteonavarra';
+  const slug = path.replace(repo, '').replace(/^\//, '');
+  if(slug) {
+    sessionStorage.setItem('mn_slug', slug);
+  }
+  window.location.replace(repo + '/');
+</script>
+</head>
+</html>
