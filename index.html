@@ -136,7 +136,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
     </div>
     <div class="grp">
       <div class="leg" id="leg2"></div>
-      <div class="chart-wrap"><canvas id="ch2yL" class="chart-yL"></canvas><div class="chart-scroll"><div class="chart-inner"><canvas id="ch2"></canvas></div></div><div class="chart-yR" style="background:transparent"></div></div>
+      <div class="chart-wrap"><canvas id="ch2yL" class="chart-yL"></canvas><div class="chart-scroll"><div class="chart-inner"><canvas id="ch2"></canvas></div></div><canvas id="ch2yR" class="chart-yR"></canvas></div>
     </div>
   </div>
   <div id="page-favs" class="page">
@@ -210,9 +210,7 @@ function gid(s){ return document.getElementById(s); }
 
 // ── FECHA ──
 function fechaStr(d){
-  const pad = n=>String(n).padStart(2,'0');
-  // Sin codificar — encodeURIComponent del proxy lo hará
-  return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+  return `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
 }
 function fechaHoy(){
   const now=new Date();
@@ -222,7 +220,7 @@ function fechaHoy(){
 
 // ── URL ──
 function makeURL(estId, param, desde, hasta){
-  return `https://meteo.navarra.es/estaciones/estacion_datos_m.cfm?idestacion=${estId}&fecha_desde=${fechaStr(desde)}&fecha_hasta=${fechaStr(hasta)}&p_10=${param}`;
+  return `https://meteo.navarra.es/estaciones/estacion_datos_m.cfm?IDEstacion=${estId}&fecha_desde=${fechaStr(desde)}&fecha_hasta=${fechaStr(hasta)}&p_10=${param}`;
 }
 
 // ── FETCH ──
@@ -451,7 +449,7 @@ function renderCharts(rows){
   });
 
   // Tamaño canvas de ejes fijos
-  ['ch1yL','ch1yR','ch2yL'].forEach(id=>{
+  ['ch1yL','ch1yR','ch2yL','ch2yR'].forEach(id=>{
     const cv=gid(id); if(!cv) return;
     cv.style.width='44px'; cv.style.height='220px';
     cv.width=44; cv.height=220;
@@ -515,10 +513,11 @@ function renderCharts(rows){
   S.charts.c2=new Chart(gid('ch2'),{type:'line',
     data:{labels,datasets:[
       {data:data.map(r=>r.vel??null),borderColor:'#66bb6a',backgroundColor:'rgba(102,187,106,.08)',fill:true,tension:.3,pointRadius:1.5,spanGaps:false},
-      {data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[4,3],spanGaps:false}
+      {data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[4,3],spanGaps:false,yAxisID:'y1'}
     ]},
     options:dataOpts({
-      y:{position:'left',display:false,min:0,max:maxViento}
+      y:{position:'left',display:false,min:0,max:maxViento},
+      y1:{position:'right',display:false,min:0,max:maxViento}
     })
   });
 
@@ -527,7 +526,15 @@ function renderCharts(rows){
   S.charts.c2yL=new Chart(gid('ch2yL'),{type:'line',
     data:{labels:[''],datasets:[{data:[null],borderColor:'transparent'}]},
     options:axisOpts({
-      y:{position:'left',ticks:{color:tc,font:{size:8},maxTicksLimit:6},grid:{color:gc},min:0,max:maxViento}
+      y:{position:'left',ticks:{color:'#66bb6a',font:{size:8},maxTicksLimit:6},grid:{color:gc},min:0,max:maxViento}
+    })
+  });
+
+  if(S.charts.c2yR) S.charts.c2yR.destroy();
+  S.charts.c2yR=new Chart(gid('ch2yR'),{type:'line',
+    data:{labels:[''],datasets:[{data:[null],yAxisID:'y1',borderColor:'transparent'}]},
+    options:axisOpts({
+      y1:{position:'right',ticks:{color:'#ef5350',font:{size:8},maxTicksLimit:6},grid:{drawOnChartArea:false},min:0,max:maxViento}
     })
   });
 }
