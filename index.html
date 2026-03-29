@@ -313,8 +313,11 @@ async function load(){
     renderCharts(rowsHoy);
 
     const [hh,mm]=(cur.hora||'0:00').split(':');
-    const hora24=String(parseInt(hh)).padStart(2,'0')+':'+String(mm||'00').padStart(2,'0');
-    gid('upd').textContent=`Última lectura: ${cur.fecha} ${hora24} (UTC)`;
+    // MeteoNavarra usa horario solar (UTC) — España en verano UTC+2
+    const offset=new Date().getTimezoneOffset()===-120?2:1;
+    const horaLocal=new Date(2000,0,1,parseInt(hh)+offset,parseInt(mm||'00'));
+    const hora24=String(horaLocal.getHours()).padStart(2,'0')+':'+String(horaLocal.getMinutes()).padStart(2,'0');
+    gid('upd').textContent=`Última lectura: ${cur.fecha} ${hora24}`;
     setStatus('ok',S.est.n);
 
   }catch(err){
@@ -448,7 +451,21 @@ function renderCharts(rows){
       {data:data.map(r=>r.dir??null),borderColor:'#ce93d8',fill:false,tension:0,pointRadius:1.5,spanGaps:false,yAxisID:'yR'}
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
-      plugins:{legend:{display:false}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{
+        mode:'index',intersect:false,
+        backgroundColor:'rgba(13,27,42,.9)',
+        titleColor:'#c8dff0',titleFont:{size:11},
+        bodyColor:'#e8f4fd',bodyFont:{size:12},
+        borderColor:'#2a4a6b',borderWidth:1,
+        padding:10,
+        callbacks:{
+          label:ctx=>{
+            const u=ctx.datasetIndex===0?'%':'°';
+            return ` ${ctx.dataset.label||''}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+u:'--'}`;
+          }
+        }
+      }},
       scales:{
         x:xScale,
         yL:{position:'left',ticks:{color:'#29b6f6',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:100},
@@ -464,7 +481,21 @@ function renderCharts(rows){
       {data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[4,3],spanGaps:false,yAxisID:'yR'}
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
-      plugins:{legend:{display:false}},
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{
+        mode:'index',intersect:false,
+        backgroundColor:'rgba(13,27,42,.9)',
+        titleColor:'#c8dff0',titleFont:{size:11},
+        bodyColor:'#e8f4fd',bodyFont:{size:12},
+        borderColor:'#2a4a6b',borderWidth:1,
+        padding:10,
+        callbacks:{
+          label:ctx=>{
+            const u=' km/h';
+            return ` ${ctx.datasetIndex===0?'Vel. media':'Ráfaga'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+u:'--'}`;
+          }
+        }
+      }},
       scales:{
         x:xScale,
         yL:{position:'left',ticks:{color:'#66bb6a',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:maxV},
