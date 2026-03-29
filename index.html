@@ -33,6 +33,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 #sw{flex:1;position:relative;min-width:0;}
 #ss{width:100%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff;border-radius:8px;padding:7px 26px 7px 10px;font-size:13px;appearance:none;cursor:pointer;outline:none;}
 [data-theme="day"] #ss{background:rgba(255,255,255,.9);color:#1a2e45;}
+[data-theme="day"] .logo em{color:#bbdefb;}
 #ss option,#ss optgroup{background:#1a2e45;color:#e8f4fd;}
 [data-theme="day"] #ss option,[data-theme="day"] #ss optgroup{background:#fff;color:#1a2e45;}
 #sw::after{content:'▼';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.6);font-size:9px;pointer-events:none;}
@@ -99,8 +100,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 .frm{background:none;border:none;color:var(--t3);font-size:18px;cursor:pointer;padding:4px;}
 
 /* TOAST */
-#toast{position:fixed;bottom:calc(var(--th)+10px);left:50%;transform:translateX(-50%) translateY(80px);background:var(--sf2);border:1px solid var(--bd);border-radius:24px;padding:8px 16px;font-size:13px;color:var(--tx);z-index:200;transition:transform .3s;white-space:nowrap;box-shadow:var(--sh);}
-#toast.on{transform:translateX(-50%) translateY(0);}
+
 .empty{text-align:center;color:var(--t3);padding:44px 20px;font-size:14px;line-height:1.7;}
 #upd{font-size:12px;color:var(--t3);text-align:center;margin-bottom:11px;}
 
@@ -127,11 +127,17 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
   <div id="page-graficas" class="page">
     <div class="grp">
       <div class="leg" id="leg1"></div>
-      <div class="chart-outer"><div class="chart-inner"><canvas id="ch1"></canvas></div></div>
+      <div class="chart-wrap">
+        <canvas id="ch1y" class="chart-yaxis"></canvas>
+        <div class="chart-outer"><div class="chart-inner"><canvas id="ch1"></canvas></div></div>
+      </div>
     </div>
     <div class="grp">
       <div class="leg" id="leg2"></div>
-      <div class="chart-outer"><div class="chart-inner"><canvas id="ch2"></canvas></div></div>
+      <div class="chart-wrap">
+        <canvas id="ch2y" class="chart-yaxis"></canvas>
+        <div class="chart-outer"><div class="chart-inner"><canvas id="ch2"></canvas></div></div>
+      </div>
     </div>
   </div>
   <div id="page-favs" class="page">
@@ -145,7 +151,6 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
   <div class="tab" data-p="graficas"><div class="ti">📈</div><div class="tb"></div><span>Gráficas</span></div>
   <div class="tab" data-p="favs"><div class="ti">⭐</div><div class="tb"></div><span>Favoritos</span></div>
 </div>
-<div id="toast"></div>
 
 <script>
 // ── ESTACIONES ──
@@ -189,7 +194,7 @@ const EST = [
 // p_10=9 racha máx km/h | p_10=12 precipitación L/m²
 const PARAMS = { temp:1, hum:2, rad:3, ins:4, vel:6, dir:7, raf:9, prec:12 };
 // Parámetros que tienen la columna útil en cells[2] en vez de cells[1]
-const PARAMS_COL2 = new Set([9]);
+const PARAMS_COL2 = new Set([6,9]);
 
 const PROXY  = u => `https://meteonavarra.mcalvo81.workers.dev/?url=${encodeURIComponent(u)}`;
 const PROXY2 = u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`;
@@ -452,17 +457,21 @@ function renderCharts(rows){
     }
   });
 
+  // Tamaño canvas datos (scrollable)
   ['ch1','ch2'].forEach(id=>{
     const canvas=gid(id);
-    const inner=canvas.parentElement;
-    canvas.style.width=W+'px';
-    canvas.style.height='180px';
-    canvas.width=W;
-    canvas.height=180;
-    inner.style.width=W+'px';
+    canvas.style.width=W+'px'; canvas.style.height='180px';
+    canvas.width=W; canvas.height=180;
+    canvas.parentElement.style.width=W+'px';
+  });
+  // Tamaño canvas ejes Y (fijo)
+  ['ch1y','ch2y'].forEach(id=>{
+    const c=gid(id);
+    c.style.width='40px'; c.style.height='180px';
+    c.width=40; c.height=180;
   });
 
-  // Leyendas HTML fijas (no se mueven con el scroll del canvas)
+  // Leyendas
   gid('leg1').innerHTML=`
     <div class="leg-item"><div class="leg-dot" style="background:#29b6f6"></div>Humedad (%)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>Dir. Viento (°)</div>`;
@@ -470,28 +479,82 @@ function renderCharts(rows){
     <div class="leg-item"><div class="leg-dot" style="background:#66bb6a"></div>Vel. media (km/h)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ef5350"></div>Ráfaga (km/h)</div>`;
 
+  // Opciones canvas datos: sin ejes Y
+  const optsNoY=(extraScales)=>({...opts(extraScales),
+    scales:{...opts(extraScales).scales,
+      y:{...opts(extraScales).scales?.y, display:false},
+      y1:{...opts(extraScales).scales?.y1, display:false}
+    }
+  });
+
+  // Opciones canvas eje Y: sin eje X ni datos, solo ejes Y
+  const optsY=(extraScales)=>({
+    responsive:false, maintainAspectRatio:false, animation:false,
+    plugins:{legend:{display:false}},
+    layout:{padding:{left:0,right:0}},
+    scales:{
+      x:{display:false},
+      ...extraScales
+    }
+  });
+
+  // Chart 1 — datos (scrollable, sin ejes Y)
   if(S.charts.c1) S.charts.c1.destroy();
-  S.charts.c1=new Chart(gid('ch1'),{
-    type:'line',
+  S.charts.c1=new Chart(gid('ch1'),{type:'line',
     data:{labels,datasets:[
       {label:'Humedad (%)',data:data.map(r=>r.hum??null),borderColor:'#29b6f6',backgroundColor:'rgba(41,182,246,.1)',fill:true,tension:.3,pointRadius:2,spanGaps:false,yAxisID:'y'},
       {label:'Dir. Viento (°)',data:data.map(r=>r.dir??null),borderColor:'#ce93d8',fill:false,tension:0,pointRadius:2,spanGaps:false,yAxisID:'y1'}
     ]},
-    options:opts({
-      y:{position:'left',ticks:{color:'#29b6f6',font:{size:9}},grid:{color:gc},min:0,max:100},
-      y1:{position:'right',ticks:{color:'#ce93d8',font:{size:9}},grid:{drawOnChartArea:false},min:0,max:360}
+    options:{responsive:false,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:tc,font:{size:9},maxRotation:90,minRotation:90,autoSkip:false},grid:{color:gc}},
+        y:{position:'left',display:false,min:0,max:100},
+        y1:{position:'right',display:false,min:0,max:360}
+      }
+    }
+  });
+
+  // Chart 1Y — solo ejes (fijo)
+  if(S.charts.c1y) S.charts.c1y.destroy();
+  S.charts.c1y=new Chart(gid('ch1y'),{type:'line',
+    data:{labels:[''],datasets:[
+      {data:[null],yAxisID:'y',borderColor:'transparent'},
+      {data:[null],yAxisID:'y1',borderColor:'transparent'}
+    ]},
+    options:optsY({
+      y:{position:'left',ticks:{color:'#29b6f6',font:{size:8}},grid:{color:gc},min:0,max:100},
+      y1:{position:'right',ticks:{color:'#ce93d8',font:{size:8}},grid:{drawOnChartArea:false},min:0,max:360}
     })
   });
 
+  // Chart 2 — datos (scrollable, sin ejes Y)
   if(S.charts.c2) S.charts.c2.destroy();
-  S.charts.c2=new Chart(gid('ch2'),{
-    type:'line',
+  S.charts.c2=new Chart(gid('ch2'),{type:'line',
     data:{labels,datasets:[
       {label:'Vel. media (km/h)',data:data.map(r=>r.vel??null),borderColor:'#66bb6a',backgroundColor:'rgba(102,187,106,.1)',fill:true,tension:.3,pointRadius:2,spanGaps:false},
       {label:'Ráfaga (km/h)',data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:2,borderDash:[4,3],spanGaps:false}
     ]},
-    options:opts({
-      y:{ticks:{color:tc,font:{size:9}},grid:{color:gc},min:0}
+    options:{responsive:false,maintainAspectRatio:false,animation:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:tc,font:{size:9},maxRotation:90,minRotation:90,autoSkip:false},grid:{color:gc}},
+        y:{display:false,min:0}
+      }
+    }
+  });
+
+  // Chart 2Y — solo eje (fijo)
+  if(S.charts.c2y) S.charts.c2y.destroy();
+  S.charts.c2y=new Chart(gid('ch2y'),{type:'line',
+    data:{labels:[''],datasets:[{data:[null],borderColor:'transparent'}]},
+    options:optsY({
+      y:{position:'left',ticks:{color:tc,font:{size:8}},grid:{color:gc},min:0,
+         afterDataLimits:(ax)=>{
+           const vals=data.map(r=>r.vel??0).concat(data.map(r=>r.raf??0)).filter(v=>v>0);
+           ax.max=vals.length?Math.ceil(Math.max(...vals)/10)*10+5:50;
+         }
+      }
     })
   });
 }
@@ -547,8 +610,7 @@ function renderFavs(){
     fl.appendChild(d);
   });
 }
-let toastT;
-function toast(m){const t=gid('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200);}
+function toast(m){}
 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',()=>{
