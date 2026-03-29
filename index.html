@@ -314,7 +314,7 @@ async function load(){
           .catch(()=>({key,rows:[]}))
       )
     );
-    const rowsAll=combine(resHist).filter(r=>r.fecha===hoy);
+    const rowsAll=combine(resHist);
 
     if(!rowsHoy.length && !rowsAll.length){
       throw new Error('No hay datos disponibles para esta estación hoy.\nPrueba con otra estación automática.');
