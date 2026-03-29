@@ -134,6 +134,10 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
       <div class="leg" id="leg2"></div>
       <div class="chart-scroll"><canvas id="ch2"></canvas></div>
     </div>
+    <div class="grp">
+      <div class="leg" id="leg3"></div>
+      <div class="chart-scroll"><canvas id="ch3"></canvas></div>
+    </div>
   </div>
   <div id="page-favs" class="page">
     <div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">⭐ Mis favoritas</div>
@@ -423,12 +427,45 @@ function renderCharts(rows){
   const W=Math.max(data.length*14, 400);
   const H=220;
 
+
+  // Plugin línea vertical al hacer hover/touch
+  const crosshairPlugin={
+    id:'crosshair',
+    afterDraw(chart){
+      if(chart.tooltip._active&&chart.tooltip._active.length){
+        const ctx=chart.ctx;
+        const x=chart.tooltip._active[0].element.x;
+        const top=chart.chartArea.top;
+        const bottom=chart.chartArea.bottom;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x,top);
+        ctx.lineTo(x,bottom);
+        ctx.lineWidth=1;
+        ctx.strokeStyle='rgba(200,223,240,.5)';
+        ctx.setLineDash([4,4]);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+  };
+  Chart.register(crosshairPlugin);
+  const ttBase={
+    mode:'index',intersect:false,
+    backgroundColor:'rgba(13,27,42,.92)',
+    titleColor:'#c8dff0',titleFont:{size:11},
+    bodyColor:'#e8f4fd',bodyFont:{size:12},
+    borderColor:'#2a4a6b',borderWidth:1,padding:10
+  };
   gid('leg1').innerHTML=`
     <div class="leg-item"><div class="leg-dot" style="background:#29b6f6"></div>Humedad (%)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ce93d8"></div>Dir. Viento (°)</div>`;
   gid('leg2').innerHTML=`
     <div class="leg-item"><div class="leg-dot" style="background:#66bb6a"></div>Vel. media (km/h)</div>
     <div class="leg-item"><div class="leg-dot" style="background:#ef5350"></div>Ráfaga (km/h)</div>`;
+  gid('leg3').innerHTML=`
+    <div class="leg-item"><div class="leg-dot" style="background:#ffb74d"></div>Temperatura (°C)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#4fc3f7" style="border-radius:2px"></div>Precipitación (L/m²)</div>`;
 
   const maxV=Math.ceil(Math.max(10,...data.map(r=>r.raf||0))/10)*10+10;
 
@@ -452,20 +489,9 @@ function renderCharts(rows){
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{
-        mode:'index',intersect:false,
-        backgroundColor:'rgba(13,27,42,.9)',
-        titleColor:'#c8dff0',titleFont:{size:11},
-        bodyColor:'#e8f4fd',bodyFont:{size:12},
-        borderColor:'#2a4a6b',borderWidth:1,
-        padding:10,
-        callbacks:{
-          label:ctx=>{
-            const u=ctx.datasetIndex===0?'%':'°';
-            return ` ${ctx.dataset.label||''}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+u:'--'}`;
-          }
-        }
-      }},
+      plugins:{legend:{display:false},tooltip:{...ttBase,callbacks:{
+        label:ctx=>{const u=ctx.datasetIndex===0?'%':'°';return ` ${ctx.datasetIndex===0?'Humedad':'Dir. viento'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+u:'--'}`;}
+      }}},
       scales:{
         x:xScale,
         yL:{position:'left',ticks:{color:'#29b6f6',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:100},
@@ -482,24 +508,39 @@ function renderCharts(rows){
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
-      plugins:{legend:{display:false},tooltip:{
-        mode:'index',intersect:false,
-        backgroundColor:'rgba(13,27,42,.9)',
-        titleColor:'#c8dff0',titleFont:{size:11},
-        bodyColor:'#e8f4fd',bodyFont:{size:12},
-        borderColor:'#2a4a6b',borderWidth:1,
-        padding:10,
-        callbacks:{
-          label:ctx=>{
-            const u=' km/h';
-            return ` ${ctx.datasetIndex===0?'Vel. media':'Ráfaga'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+u:'--'}`;
-          }
-        }
-      }},
+      plugins:{legend:{display:false},tooltip:{...ttBase,callbacks:{
+        label:ctx=>{return ` ${ctx.datasetIndex===0?'Vel. media':'Ráfaga'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' km/h':'--'}`;}
+      }}},
       scales:{
         x:xScale,
         yL:{position:'left',ticks:{color:'#66bb6a',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:maxV},
         yR:{position:'right',ticks:{color:'#ef5350',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:maxV}
+      }
+    }
+  });
+
+  // ── GRÁFICA 3: Temperatura + Precipitación ──
+  const maxPrec=Math.max(1,...data.map(r=>r.prec||0))*1.3;
+  const minT=Math.floor(Math.min(...data.map(r=>r.temp??99))-2);
+  const maxT=Math.ceil(Math.max(...data.map(r=>r.temp??-99))+2);
+  if(S.charts.c3) S.charts.c3.destroy();
+  S.charts.c3=new Chart(mkCanvas('ch3'),{type:'bar',
+    data:{labels,datasets:[
+      {type:'line',data:data.map(r=>r.temp??null),borderColor:'#ffb74d',backgroundColor:'rgba(255,183,77,.1)',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL',order:1},
+      {type:'bar',data:data.map(r=>r.prec??null),borderColor:'#4fc3f7',backgroundColor:'rgba(79,195,247,.5)',yAxisID:'yR',order:2,borderRadius:2}
+    ]},
+    options:{responsive:false,maintainAspectRatio:false,animation:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{legend:{display:false},tooltip:{...ttBase,callbacks:{
+        label:ctx=>{
+          if(ctx.datasetIndex===0) return ` Temperatura: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+'°C':'--'}`;
+          return ` Precipitación: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' L/m²':'--'}`;
+        }
+      }}},
+      scales:{
+        x:xScale,
+        yL:{position:'left',ticks:{color:'#ffb74d',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:minT,max:maxT},
+        yR:{position:'right',ticks:{color:'#4fc3f7',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:maxPrec}
       }
     }
   });
