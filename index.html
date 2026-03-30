@@ -191,7 +191,7 @@ const EST = [
 // p_10=1 temperatura | p_10=2 humedad | p_10=3 radiación W/m²
 // p_10=4 insolación s | p_10=6 vel.media km/h | p_10=7 dir.viento °
 // p_10=9 racha máx km/h | p_10=12 precipitación L/m²
-const PARAMS = { temp:1, hum:2, rad:3, ins:4, vel:6, dir:7, raf:9, prec:12 };
+const PARAMS = { temp:1, hum:2, rad:3, ins:4, vel:6, dir:7, raf:9, prec:11 };
 // Parámetros que tienen la columna útil en cells[2] en vez de cells[1]
 const PARAMS_COL2 = new Set([6,9]);
 
@@ -405,7 +405,7 @@ function renderDatos(d){
     <div class="grp-2col">
       <div class="grp">
         <div class="grp-title">🌧️ Precipitación</div>
-        <div class="cell-val">${fm(d.prec,1)}</div>
+        <div class="cell-val">${fm(d.prec??0,1)}</div>
         <div class="cell-unit">L/m² última lectura</div>
         <div style="font-size:11px;color:var(--t3);margin-top:4px">Acumulada hoy: ${fm(S.hist.reduce((s,r)=>s+(r.prec||0),0),1)} L/m²</div>
       </div>
