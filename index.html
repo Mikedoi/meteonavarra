@@ -396,6 +396,7 @@ function renderDatos(d){
             <div class="wind-item">
               <div class="cell-lbl">Ráfaga máx.</div>
               <div class="cell-val" style="font-size:22px">${fm(d.raf,1)} <span style="font-size:13px;color:var(--t2)">km/h</span></div>
+              ${(()=>{const rafMax=S.hist.reduce((m,r)=>r.raf!=null&&r.raf>m.v?{v:r.raf,h:r.hora}:m,{v:-1,h:''});const[hh,mm]=(rafMax.h||'0:00').split(':');const off=new Date().getTimezoneOffset()===-120?2:1;const ld=new Date(2000,0,1,parseInt(hh)+off,parseInt(mm||'0'));const hl=String(ld.getHours()).padStart(2,'0')+':'+String(ld.getMinutes()).padStart(2,'0');return rafMax.v>0?`<div style="font-size:11px;color:var(--t3);margin-top:3px">Máx. hoy: ${rafMax.v.toFixed(1)} km/h a las ${hl}</div>`:'';})()} 
             </div>
           </div>
         </div>
@@ -508,13 +509,13 @@ function renderCharts(rows){
   if(S.charts.c2) S.charts.c2.destroy();
   S.charts.c2=new Chart(mkCanvas('ch2'),{type:'line',
     data:{labels,datasets:[
-      {data:data.map(r=>r.vel??null),borderColor:'#66bb6a',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL'},
-      {data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[4,3],spanGaps:false,yAxisID:'yR'}
+      {data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[4,3],spanGaps:false,yAxisID:'yR'},
+      {data:data.map(r=>r.vel??null),borderColor:'#66bb6a',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL'}
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{...ttBase,callbacks:{
-        label:ctx=>{return ` ${ctx.datasetIndex===1?'Ráfaga máx.':'Vel. media'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' km/h':'--'}`;},
+        label:ctx=>{return ` ${ctx.datasetIndex===0?'Ráfaga máx.':'Vel. media'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' km/h':'--'}`;},
         afterLabel:ctx=>ctx.datasetIndex===1?'':undefined,
         itemSort:(a,b)=>b.datasetIndex-a.datasetIndex
       }}},
