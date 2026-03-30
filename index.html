@@ -406,7 +406,8 @@ function renderDatos(d){
       <div class="grp">
         <div class="grp-title">🌧️ Precipitación</div>
         <div class="cell-val">${fm(d.prec,1)}</div>
-        <div class="cell-unit">L/m²</div>
+        <div class="cell-unit">L/m² última lectura</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px">Acumulada hoy: ${fm(S.hist.reduce((s,r)=>s+(r.prec||0),0),1)} L/m²</div>
       </div>
       <div class="grp">
         <div class="grp-title">☀️ Radiación</div>
