@@ -359,6 +359,9 @@ function renderDatos(d){
         <div class="cell">
           <div class="cell-icon">${wxic(d.temp,d.prec||0,d.rad||0)}</div>
           <div class="cell-val" style="color:${tcol(d.temp)}">${fm(d.temp,1)}°C</div>
+          <div style="font-size:11px;color:var(--t3);margin-top:4px">
+            ▲ ${fm(S.hist.reduce((m,r)=>r.temp!=null&&r.temp>m?r.temp:m,-99),1)}° &nbsp; ▼ ${fm(S.hist.reduce((m,r)=>r.temp!=null&&r.temp<m?r.temp:m,99),1)}°
+          </div>
           <div class="cell-lbl">Temperatura</div>
         </div>
         <div class="cell">
@@ -422,7 +425,9 @@ function renderCharts(rows){
   const data=rows.filter(r=>r.hum!=null||r.vel!=null).slice(-144);
   if(!data.length) return;
 
-  const labels=data.map(r=>r.hora);
+  const _off=new Date().getTimezoneOffset()===-120?2:1;
+  const toLocal=h=>{const[hh,mm]=(h||'0:00').split(':');const d=new Date(2000,0,1,parseInt(hh)+_off,parseInt(mm||'0'));return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
+  const labels=data.map(r=>toLocal(r.hora));
   // 14px por punto — suficiente para ver HH:MM vertical
   const W=Math.max(data.length*14, 400);
   const H=220;
@@ -484,7 +489,7 @@ function renderCharts(rows){
   if(S.charts.c1) S.charts.c1.destroy();
   S.charts.c1=new Chart(mkCanvas('ch1'),{type:'line',
     data:{labels,datasets:[
-      {data:data.map(r=>r.hum??null),borderColor:'#29b6f6',backgroundColor:'rgba(41,182,246,.1)',fill:true,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL'},
+      {data:data.map(r=>r.hum??null),borderColor:'#29b6f6',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL'},
       {data:data.map(r=>r.dir??null),borderColor:'#ce93d8',fill:false,tension:0,pointRadius:1.5,spanGaps:false,yAxisID:'yR'}
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
@@ -503,13 +508,15 @@ function renderCharts(rows){
   if(S.charts.c2) S.charts.c2.destroy();
   S.charts.c2=new Chart(mkCanvas('ch2'),{type:'line',
     data:{labels,datasets:[
-      {data:data.map(r=>r.vel??null),borderColor:'#66bb6a',backgroundColor:'rgba(102,187,106,.1)',fill:true,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL'},
+      {data:data.map(r=>r.vel??null),borderColor:'#66bb6a',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL'},
       {data:data.map(r=>r.raf??null),borderColor:'#ef5350',fill:false,tension:.3,pointRadius:1.5,borderDash:[4,3],spanGaps:false,yAxisID:'yR'}
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
       interaction:{mode:'index',intersect:false},
       plugins:{legend:{display:false},tooltip:{...ttBase,callbacks:{
-        label:ctx=>{return ` ${ctx.datasetIndex===0?'Vel. media':'Ráfaga'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' km/h':'--'}`;}
+        label:ctx=>{return ` ${ctx.datasetIndex===1?'Ráfaga máx.':'Vel. media'}: ${ctx.parsed.y!=null?ctx.parsed.y.toFixed(1)+' km/h':'--'}`;},
+        afterLabel:ctx=>ctx.datasetIndex===1?'':undefined,
+        itemSort:(a,b)=>b.datasetIndex-a.datasetIndex
       }}},
       scales:{
         x:xScale,
@@ -526,7 +533,7 @@ function renderCharts(rows){
   if(S.charts.c3) S.charts.c3.destroy();
   S.charts.c3=new Chart(mkCanvas('ch3'),{type:'bar',
     data:{labels,datasets:[
-      {type:'line',data:data.map(r=>r.temp??null),borderColor:'#ffb74d',backgroundColor:'rgba(255,183,77,.1)',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL',order:1},
+      {type:'line',data:data.map(r=>r.temp??null),borderColor:'#ffb74d',fill:false,tension:.3,pointRadius:1.5,spanGaps:false,yAxisID:'yL',order:1},
       {type:'bar',data:data.map(r=>r.prec??null),borderColor:'#4fc3f7',backgroundColor:'rgba(79,195,247,.5)',yAxisID:'yR',order:2,borderRadius:2}
     ]},
     options:{responsive:false,maintainAspectRatio:false,animation:false,
