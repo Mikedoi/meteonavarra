@@ -87,7 +87,9 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 .leg{display:flex;gap:14px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;}
 .leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);}
 .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
-.chart-scroll{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
+.chart-wrap{position:relative;display:flex;height:220px;}
+.chart-yL,.chart-yR{width:38px;flex-shrink:0;height:220px;position:relative;z-index:2;background:var(--sf);}
+.chart-scroll{flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
 .chart-scroll::-webkit-scrollbar{height:4px;}
 .chart-scroll::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px;}
 
@@ -129,15 +131,15 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
   <div id="page-graficas" class="page">
     <div class="grp">
       <div class="leg" id="leg1"></div>
-      <div class="chart-scroll"><canvas id="ch1"></canvas></div>
+      <div class="chart-wrap"><canvas id="ch1yL" class="chart-yL"></canvas><div class="chart-scroll"><canvas id="ch1"></canvas></div><canvas id="ch1yR" class="chart-yR"></canvas></div>
     </div>
     <div class="grp">
       <div class="leg" id="leg2"></div>
-      <div class="chart-scroll"><canvas id="ch2"></canvas></div>
+      <div class="chart-wrap"><canvas id="ch2yL" class="chart-yL"></canvas><div class="chart-scroll"><canvas id="ch2"></canvas></div><canvas id="ch2yR" class="chart-yR"></canvas></div>
     </div>
     <div class="grp">
       <div class="leg" id="leg3"></div>
-      <div class="chart-scroll"><canvas id="ch3"></canvas></div>
+      <div class="chart-wrap"><canvas id="ch3yL" class="chart-yL"></canvas><div class="chart-scroll"><canvas id="ch3"></canvas></div><canvas id="ch3yR" class="chart-yR"></canvas></div>
     </div>
   </div>
   <div id="page-favs" class="page">
@@ -446,16 +448,20 @@ function renderCharts(rows){
   const gc=day?'rgba(192,212,232,.7)':'rgba(42,74,107,.6)';
   const tc=day?'#2a5a8a':'#90b4ce';
 
-  // Solo filas con datos reales, últimas 144 (24h)
   const data=rows.filter(r=>r.hum!=null||r.vel!=null).slice(-144);
   if(!data.length) return;
 
   const _off=new Date().getTimezoneOffset()===-120?2:1;
   const toLocal=h=>{const[hh,mm]=(h||'0:00').split(':');const d=new Date(2000,0,1,parseInt(hh)+_off,parseInt(mm||'0'));return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};
   const labels=data.map(r=>r._horaLocal||toLocal(r.hora));
-  // 14px por punto — suficiente para ver HH:MM vertical
   const W=Math.max(data.length*14, 400);
-  const H=220;
+  const H=200;
+
+  // Tamaño canvas ejes fijos
+  ['ch1yL','ch1yR','ch2yL','ch2yR','ch3yL','ch3yR'].forEach(id=>{
+    const cv=gid(id); if(!cv) return;
+    cv.width=38; cv.height=H; cv.style.width='38px'; cv.style.height=H+'px';
+  });
 
 
   // Plugin línea vertical al hacer hover/touch
@@ -503,7 +509,27 @@ function renderCharts(rows){
     const cv=gid(id);
     cv.width=W; cv.height=H;
     cv.style.width=W+'px'; cv.style.height=H+'px';
+    cv.parentElement.style.width=W+'px';
     return cv;
+  }
+
+  // Canvas eje fijo (sin eje X, sin datos, solo escala Y)
+  function mkAxis(id,yScales){
+    const cv=gid(id); if(!cv) return null;
+    const key='ax_'+id;
+    if(S.charts[key]) S.charts[key].destroy();
+    S.charts[key]=new Chart(cv,{type:'line',
+      data:{labels:[''],datasets:[
+        {data:[null],yAxisID:'yL',borderColor:'transparent'},
+        {data:[null],yAxisID:'yR',borderColor:'transparent'}
+      ]},
+      options:{responsive:false,maintainAspectRatio:false,animation:false,
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        layout:{padding:{top:0,bottom:0}},
+        scales:{x:{display:false},...yScales}
+      }
+    });
+    return S.charts[key];
   }
 
   const xScale={
@@ -524,11 +550,13 @@ function renderCharts(rows){
       }}},
       scales:{
         x:xScale,
-        yL:{position:'left',ticks:{color:'#29b6f6',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:100},
-        yR:{position:'right',ticks:{color:'#ce93d8',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:360}
+        yL:{position:'left',display:false,min:0,max:100},
+        yR:{position:'right',display:false,min:0,max:360}
       }
     }
   });
+  mkAxis('ch1yL',{yL:{position:'left',ticks:{color:'#29b6f6',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:100},yR:{position:'right',display:false,min:0,max:360}});
+  mkAxis('ch1yR',{yL:{position:'left',display:false,min:0,max:100},yR:{position:'right',ticks:{color:'#ce93d8',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:360}});
 
   if(S.charts.c2) S.charts.c2.destroy();
   S.charts.c2=new Chart(mkCanvas('ch2'),{type:'line',
@@ -545,11 +573,13 @@ function renderCharts(rows){
       }}},
       scales:{
         x:xScale,
-        yL:{position:'left',ticks:{color:'#66bb6a',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:maxV},
-        yR:{position:'right',ticks:{color:'#ef5350',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:maxV}
+        yL:{position:'left',display:false,min:0,max:maxV},
+        yR:{position:'right',display:false,min:0,max:maxV}
       }
     }
   });
+  mkAxis('ch2yL',{yL:{position:'left',ticks:{color:'#66bb6a',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:0,max:maxV},yR:{position:'right',display:false,min:0,max:maxV}});
+  mkAxis('ch2yR',{yL:{position:'left',display:false,min:0,max:maxV},yR:{position:'right',ticks:{color:'#ef5350',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:maxV}});
 
   // ── GRÁFICA 3: Temperatura + Precipitación ──
   const maxPrec=Math.max(1,...data.map(r=>r.prec||0))*1.3;
@@ -571,11 +601,13 @@ function renderCharts(rows){
       }}},
       scales:{
         x:xScale,
-        yL:{position:'left',ticks:{color:'#ffb74d',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:minT,max:maxT},
-        yR:{position:'right',ticks:{color:'#4fc3f7',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:maxPrec}
+        yL:{position:'left',display:false,min:minT,max:maxT},
+        yR:{position:'right',display:false,min:0,max:maxPrec}
       }
     }
   });
+  mkAxis('ch3yL',{yL:{position:'left',ticks:{color:'#ffb74d',font:{size:9},maxTicksLimit:5},grid:{color:gc},min:minT,max:maxT},yR:{position:'right',display:false,min:0,max:maxPrec}});
+  mkAxis('ch3yR',{yL:{position:'left',display:false,min:minT,max:maxT},yR:{position:'right',ticks:{color:'#4fc3f7',font:{size:9},maxTicksLimit:5},grid:{drawOnChartArea:false},min:0,max:maxPrec}});
   // Scroll al final (hora actual)
   requestAnimationFrame(()=>{
     document.querySelectorAll('.chart-scroll').forEach(el=>el.scrollLeft=el.scrollWidth);
