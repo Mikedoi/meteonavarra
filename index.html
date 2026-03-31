@@ -291,27 +291,33 @@ async function load(){
 
   try{
     const now=new Date();
-    const offset=now.getTimezoneOffset()===-120?2:1; // UTC+2 verano, UTC+1 invierno
-    // Fecha local española (no UTC) para el filtro
+    const offset=now.getTimezoneOffset()===-120?2:1;
     const localNow=new Date(now.getTime()+offset*3600000);
     const pad=n=>String(n).padStart(2,'0');
     const hoy=`${pad(localNow.getUTCDate())}/${pad(localNow.getUTCMonth()+1)}/${localNow.getUTCFullYear()}`;
-    // Pedir desde ayer para capturar madrugada (antes de las 2am UTC = medianoche local)
-    const ayer=new Date(now.getTime()-86400000);
-    const manana=new Date(now.getTime()+86400000);
 
-    const res=await Promise.all(
+    // Petición 1: hoy UTC (fecha local puede incluir parte de ayer UTC)
+    const hoyUTC=new Date(now);
+    const ayerUTC=new Date(now.getTime()-86400000);
+    const mananaUTC=new Date(now.getTime()+86400000);
+
+    // Hacemos DOS peticiones: ayer UTC y hoy UTC, y combinamos
+    const fetchParams=(desde,hasta)=>Promise.all(
       Object.entries(PARAMS).map(([key,pnum])=>
-        fetchOne(makeURL(S.est.id,pnum,ayer,manana))
+        fetchOne(makeURL(S.est.id,pnum,desde,hasta))
           .then(html=>({key,rows:html?parseParam(html,PARAMS_COL2.has(pnum)?2:1):[]}))
           .catch(()=>({key,rows:[]}))
       )
     );
 
-    // Todas las filas combinadas, ordenadas
-    const allRows=combine(res);
+    const [resAyer, resHoy]=await Promise.all([
+      fetchParams(ayerUTC, hoyUTC),
+      fetchParams(hoyUTC, mananaUTC)
+    ]);
 
-    // Convertir fecha UTC de MeteoNavarra a fecha local española y filtrar solo hoy
+    const allRows=[...combine(resAyer), ...combine(resHoy)];
+
+    // Convertir UTC a hora local y filtrar solo filas de hoy local
     const rowsHoy=allRows.filter(r=>{
       const [d,m,y]=r.fecha.split('/').map(Number);
       const [hh,mm]=(r.hora||'0:00').split(':').map(Number);
@@ -321,7 +327,7 @@ async function load(){
       const fechaLocal=`${lpad(local.getUTCDate())}/${lpad(local.getUTCMonth()+1)}/${local.getUTCFullYear()}`;
       r._horaLocal=`${lpad(local.getUTCHours())}:${lpad(local.getUTCMinutes())}`;
       return fechaLocal===hoy;
-    });
+    }).sort((a,b)=>a._horaLocal.localeCompare(b._horaLocal));
 
     if(!rowsHoy.length){
       throw new Error('No hay datos disponibles para esta estación hoy.\nPrueba con otra estación automática.');
