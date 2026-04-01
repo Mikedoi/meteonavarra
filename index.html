@@ -465,45 +465,22 @@ function renderCharts(rows){
   });
 
 
-  // Plugin crosshair sincronizado entre las 3 gráficas
-  let _sharedIndex=null;
+  // Plugin crosshair simple — dibuja línea vertical en hover/touch
   const crosshairPlugin={
     id:'crosshair',
     afterDraw(chart){
-      const idx=_sharedIndex;
-      if(idx==null) return;
-      const meta=chart.getDatasetMeta(0);
-      if(!meta||!meta.data[idx]) return;
-      const x=meta.data[idx].x;
+      if(!chart.tooltip._active||!chart.tooltip._active.length) return;
+      const x=chart.tooltip._active[0].element.x;
       const ctx=chart.ctx;
-      const top=chart.chartArea.top;
-      const bottom=chart.chartArea.bottom;
       ctx.save();
       ctx.beginPath();
-      ctx.moveTo(x,top);
-      ctx.lineTo(x,bottom);
+      ctx.moveTo(x,chart.chartArea.top);
+      ctx.lineTo(x,chart.chartArea.bottom);
       ctx.lineWidth=1;
       ctx.strokeStyle='rgba(200,223,240,.6)';
       ctx.setLineDash([4,4]);
       ctx.stroke();
       ctx.restore();
-    },
-    afterEvent(chart,args){
-      const e=args.event;
-      if(e.type==='mouseout'||e.type==='touchend'){
-        _sharedIndex=null;
-        [S.charts.c1,S.charts.c2,S.charts.c3].forEach(ch=>ch&&ch.update('none'));
-        return;
-      }
-      if(chart.tooltip._active&&chart.tooltip._active.length){
-        const newIdx=chart.tooltip._active[0].index;
-        if(newIdx!==_sharedIndex){
-          _sharedIndex=newIdx;
-          [S.charts.c1,S.charts.c2,S.charts.c3].forEach(ch=>{
-            if(ch&&ch!==chart) ch.update('none');
-          });
-        }
-      }
     }
   };
   Chart.register(crosshairPlugin);
@@ -737,6 +714,35 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
   document.querySelectorAll('.chart-scroll').forEach(el=>{
     el.addEventListener('scroll',()=>syncScroll(el),{passive:true});
+  });
+
+  // Sincronizar crosshair: al mover sobre una gráfica, activar tooltip en las otras
+  function syncCrosshair(srcChart, x, y){
+    [S.charts.c1,S.charts.c2,S.charts.c3].forEach(ch=>{
+      if(!ch||ch===srcChart) return;
+      const rect=ch.canvas.getBoundingClientRect();
+      // Encontrar el punto más cercano en X
+      const pts=ch.getElementsAtEventForMode({clientX:x,clientY:rect.top+rect.height/2},{mode:'index',intersect:false},false,false);
+      if(pts.length){
+        ch.tooltip.setActiveElements(pts.map(p=>({datasetIndex:p.datasetIndex,index:p.index})),{x,y});
+        ch.update('none');
+      }
+    });
+  }
+  function clearCrosshair(){
+    [S.charts.c1,S.charts.c2,S.charts.c3].forEach(ch=>{
+      if(!ch) return;
+      ch.tooltip.setActiveElements([],{});
+      ch.update('none');
+    });
+  }
+  ['ch1','ch2','ch3'].forEach(id=>{
+    const cv=gid(id);
+    if(!cv) return;
+    cv.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();syncCrosshair(S.charts[id.replace('ch','c')],e.clientX,e.clientY);});
+    cv.addEventListener('mouseleave',clearCrosshair);
+    cv.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];syncCrosshair(S.charts[id.replace('ch','c')],t.clientX,t.clientY);},{passive:false});
+    cv.addEventListener('touchend',clearCrosshair);
   });
 });
 </script>
