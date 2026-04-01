@@ -88,7 +88,8 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Segoe UI
 .leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--t2);}
 .leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
 .chart-wrap{position:relative;display:flex;height:155px;}
-.chart-yL,.chart-yR{width:50px;flex-shrink:0;height:155px;position:relative;z-index:2;background:var(--sf);}
+.chart-yL{width:42px;flex-shrink:0;height:155px;position:relative;z-index:2;background:var(--sf);}
+.chart-yR{width:52px;flex-shrink:0;height:155px;position:relative;z-index:2;background:var(--sf);}
 .chart-scroll{flex:1;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
 .chart-scroll::-webkit-scrollbar{height:4px;}
 .chart-scroll::-webkit-scrollbar-thumb{background:var(--bd);border-radius:4px;}
@@ -460,28 +461,48 @@ function renderCharts(rows){
   // Tamaño canvas ejes fijos
   ['ch1yL','ch1yR','ch2yL','ch2yR','ch3yL','ch3yR'].forEach(id=>{
     const cv=gid(id); if(!cv) return;
-    cv.width=50; cv.height=H; cv.style.width='50px'; cv.style.height=H+'px';
+    const isR=id.endsWith('yR'); cv.width=isR?52:42; cv.height=H; cv.style.width=(isR?52:42)+'px'; cv.style.height=H+'px';
   });
 
 
-  // Plugin línea vertical al hacer hover/touch
+  // Plugin crosshair sincronizado entre las 3 gráficas
+  let _sharedIndex=null;
   const crosshairPlugin={
     id:'crosshair',
     afterDraw(chart){
+      const idx=_sharedIndex;
+      if(idx==null) return;
+      const meta=chart.getDatasetMeta(0);
+      if(!meta||!meta.data[idx]) return;
+      const x=meta.data[idx].x;
+      const ctx=chart.ctx;
+      const top=chart.chartArea.top;
+      const bottom=chart.chartArea.bottom;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(x,top);
+      ctx.lineTo(x,bottom);
+      ctx.lineWidth=1;
+      ctx.strokeStyle='rgba(200,223,240,.6)';
+      ctx.setLineDash([4,4]);
+      ctx.stroke();
+      ctx.restore();
+    },
+    afterEvent(chart,args){
+      const e=args.event;
+      if(e.type==='mouseout'||e.type==='touchend'){
+        _sharedIndex=null;
+        [S.charts.c1,S.charts.c2,S.charts.c3].forEach(ch=>ch&&ch.update('none'));
+        return;
+      }
       if(chart.tooltip._active&&chart.tooltip._active.length){
-        const ctx=chart.ctx;
-        const x=chart.tooltip._active[0].element.x;
-        const top=chart.chartArea.top;
-        const bottom=chart.chartArea.bottom;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(x,top);
-        ctx.lineTo(x,bottom);
-        ctx.lineWidth=1;
-        ctx.strokeStyle='rgba(200,223,240,.5)';
-        ctx.setLineDash([4,4]);
-        ctx.stroke();
-        ctx.restore();
+        const newIdx=chart.tooltip._active[0].index;
+        if(newIdx!==_sharedIndex){
+          _sharedIndex=newIdx;
+          [S.charts.c1,S.charts.c2,S.charts.c3].forEach(ch=>{
+            if(ch&&ch!==chart) ch.update('none');
+          });
+        }
       }
     }
   };
@@ -525,7 +546,7 @@ function renderCharts(rows){
       ]},
       options:{responsive:false,maintainAspectRatio:false,animation:false,
         plugins:{legend:{display:false},tooltip:{enabled:false}},
-        layout:{padding:{top:0,bottom:0}},
+        layout:{padding:{top:2,bottom:2,left:0,right:0}},
         scales:{x:{display:false},...yScales}
       }
     });
